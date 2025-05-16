@@ -15,8 +15,6 @@ export default function FinanceScreen() {
         <Text style={styles.bankText}>UBL Digital</Text>
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
-
-      <Text style={styles.label}>Set up a payment</Text>
     </View>
   );
 }

@@ -14,9 +14,6 @@ export default function AddAccountScreen() {
         </Text>
       </View>
 
-      <TouchableOpacity>
-        <Text style={styles.helperText}>Show bank format</Text>
-      </TouchableOpacity>
 
       <View style={styles.keypad}>
         {['1','2','3','4','5','6','7','8','9','0'].map((num, idx) => (
@@ -34,7 +31,7 @@ export default function AddAccountScreen() {
       </View>
 
       <TouchableOpacity style={styles.button}>
-        <Text style={styles.buttonText}>Add bank account number →</Text>
+        <Text style={styles.buttonText}>Add Account →</Text>
       </TouchableOpacity>
     </View>
   );

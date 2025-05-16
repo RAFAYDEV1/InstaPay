@@ -1,19 +1,21 @@
+import { useRouter } from 'expo-router';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function HomeScreen() {
+  const router = useRouter();
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <TouchableOpacity style={styles.header} onPress={() => router.push('/profile')}>
         <Image
-          source={require('@/assets/images/Avatar.png')} // Add this image
+          source={require('@/assets/images/Avatar.png')}
           style={styles.avatar}
         />
         <View>
           <Text style={styles.hello}>Hello</Text>
           <Text style={styles.username}>Rafay</Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* Balance */}
       <Text style={styles.balanceLabel}>Current Balance</Text>
