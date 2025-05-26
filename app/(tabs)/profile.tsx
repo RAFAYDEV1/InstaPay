@@ -1,35 +1,37 @@
 import { Entypo, FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ProfileScreen() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Profile</Text>
 
+      {/* QR Code Section */}
       <View style={styles.avatarWrapper}>
-        <View style={styles.avatarBorder}>
+        <View style={styles.qrBorder}>
           <Image
-            source={require('@/assets/images/Avatar.png')} // replace with your actual image
-            style={styles.avatar}
+            source={require('@/assets/images/qr.png')}
+            style={styles.qrImage}
           />
-          <TouchableOpacity style={styles.cameraButton}>
-            <Ionicons name="camera" size={18} color="#1E1E50" />
-          </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.cardContainer}>
-        <ProfileCard
+        <ProfileCard 
           icon={<Ionicons name="person" size={20} color="#1E1E50" />}
           title="Personal Details"
+          onPress={() => router.push('/profile/personalDetails')}
         />
+
         <ProfileCard
           icon={<FontAwesome5 name="university" size={18} color="#1E1E50" />}
           title="Bank Account Details"
         />
         <ProfileCard
           icon={<MaterialIcons name="article" size={20} color="#1E1E50" />}
-          title="Account opening Form"
+          title="Account Opening Form"
         />
         <ProfileCard
           icon={<Entypo name="add-user" size={20} color="#1E1E50" />}
@@ -40,16 +42,23 @@ export default function ProfileScreen() {
   );
 }
 
-function ProfileCard({ icon, title }: { icon: React.ReactNode; title: string }) {
+function ProfileCard({
+  icon,
+  title,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  onPress?: () => void;
+}) {
   return (
-    <TouchableOpacity style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress}>
       <View style={styles.iconWrapper}>{icon}</View>
       <Text style={styles.cardText}>{title}</Text>
       <Ionicons name="chevron-forward" size={18} color="#1E1E50" />
     </TouchableOpacity>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -68,33 +77,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
-  avatarBorder: {
+  qrBorder: {
     borderWidth: 3,
     borderColor: '#c91f5a',
-    borderRadius: 100,
-    padding: 5,
+    borderRadius: 16,
+    padding: 6,
     backgroundColor: '#fff',
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 3 },
     shadowRadius: 6,
     elevation: 5,
-    position: 'relative',
   },
-  avatar: {
-    height: 100,
-    width: 100,
-    borderRadius: 50,
+  qrImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
   },
-  cameraButton: {
-    position: 'absolute',
-    bottom: 0,
-    alignSelf: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: '#ddd',
+  qrText: {
+    marginTop: 12,
+    color: '#1E1E50',
+    fontSize: 14,
+    fontWeight: '500',
   },
   cardContainer: {
     gap: 16,

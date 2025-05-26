@@ -7,7 +7,7 @@ type StepParams = {
 
 const data = [
   {
-    title: 'We are into automating Microfinance in World',
+    title: 'We are into automating Microfinance in Pakistan',
     image: require('@/assets/images/wallet.png'),
   },
   {

@@ -8,7 +8,7 @@ export default function CameraLoading() {
   useEffect(() => {
     const timer = setTimeout(() => {
       router.replace('/scan-qr/camera');
-    }, 2000); // mimic loading time
+    }, 1000); // mimic loading time
 
     return () => clearTimeout(timer);
   }, []);
