@@ -31,9 +31,6 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Profile</Text>
-        <TouchableOpacity style={styles.editButton}>
-          <Feather name="edit-2" size={20} color="#6C63FF" />
-        </TouchableOpacity>
       </View>
 
       {/* Profile Card */}
@@ -74,8 +71,7 @@ export default function ProfileScreen() {
           <Field 
             icon="phone" 
             label="Mobile Number" 
-            value="03000755519" 
-            sensitive 
+            value="03000755519"
           />
           <Field 
             icon="mail" 
@@ -123,17 +119,9 @@ const Field = ({
         <Feather name={icon as any} size={16} color="#6C63FF" />
         <Text style={styles.fieldLabel}>{label}</Text>
       </View>
-      {sensitive && (
-        <TouchableOpacity>
-          <Feather name="eye-off" size={16} color="#999" />
-        </TouchableOpacity>
-      )}
     </View>
     <View style={styles.fieldValueContainer}>
       <Text style={styles.fieldValue}>{value}</Text>
-      <TouchableOpacity>
-        <Feather name="edit-3" size={16} color="#999" />
-      </TouchableOpacity>
     </View>
   </View>
 );
@@ -192,7 +180,7 @@ const styles = StyleSheet.create({
     height: 130,
     borderRadius: 65,
     borderWidth: 4,
-    borderColor: '#6C63FF',
+    borderColor: '#1E1E50',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
@@ -211,7 +199,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 5,
     right: 5,
-    backgroundColor: '#6C63FF',
+    backgroundColor: '#1E1E50',
     borderRadius: 20,
     padding: 10,
     borderWidth: 3,
@@ -225,12 +213,12 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1A1A2E',
+    color: '#1E1E50',
     marginBottom: 4,
   },
   profileHandle: {
     fontSize: 16,
-    color: '#6C63FF',
+    color: '#1E1E50',
     fontWeight: '500',
   },
   fieldsContainer: {
@@ -253,7 +241,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1A1A2E',
+    color: '#1E1E50',
     marginLeft: 8,
   },
   fieldValueContainer: {
@@ -264,7 +252,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E8E8E8',
+    borderColor: '#1E1E50',
   },
   fieldValue: {
     fontSize: 16,
@@ -297,32 +285,16 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     gap: 12,
   },
-  primaryButton: {
-    backgroundColor: '#6C63FF',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#6C63FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   secondaryButton: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#6C63FF',
+    borderColor: '#1E1E50',
   },
   secondaryButtonText: {
-    color: '#6C63FF',
+    color: '#1E1E50',
     fontSize: 16,
     fontWeight: '600',
   },
