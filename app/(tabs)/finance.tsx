@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -10,7 +9,6 @@ const BANK_OPTIONS = [
 ];
 
 export default function FinanceScreen() {
-  const router = useRouter();
   const [linkedAccount, setLinkedAccount] = useState<{ name: string; logo: any } | null>(BANK_OPTIONS[0]);
 
   const handleUnlink = () => {
@@ -94,7 +92,6 @@ const styles = StyleSheet.create({
   },
   bankLogo: { width: 40, height: 40, resizeMode: 'contain', marginRight: 16 },
   bankText: { flex: 1, fontSize: 16, fontWeight: '600', color: '#0A0A3E' },
-  arrow: { fontSize: 24, color: '#888' },
   unlinkButton: {
     alignSelf: 'flex-start',
     paddingVertical: 8,

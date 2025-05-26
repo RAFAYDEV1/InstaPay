@@ -1,5 +1,5 @@
 import { useImage } from "@/app/context/ImageContext";
-import { Entypo, FontAwesome5, Ionicons } from "@expo/vector-icons";
+import { Entypo, FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import {
   Image,
@@ -128,12 +128,11 @@ export default function HomeScreen() {
         />
       </View>
 
-      {/* Scam Warning */}
-      <View style={styles.warningCard}>
-        <Text style={styles.warningTitle}>⚠️ Beware of Scammers</Text>
-        <Text style={styles.warningText}>
-          Do not share your OTP with anyone. InstaPay will never ask you to
-          share your OTP.
+      {/* Security Notice */}
+      <View style={styles.securityNotice}>
+        <MaterialIcons name="security" size={20} color="#FF6B35" />
+        <Text style={styles.securityText}>
+          Keep your account secure. Never share your OTP with anyone.
         </Text>
       </View>
 
@@ -230,23 +229,22 @@ const styles = StyleSheet.create({
     color: '#0A0A3E',
     marginBottom: 10,
   },
-
-  warningCard: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 20,
-    backgroundColor: "#fff",
+  securityNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff3cd',
+    margin: 20,
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF6B35',
   },
-  warningTitle: {
-    fontWeight: "bold",
-    marginBottom: 5,
-    color: "#000",
-  },
-  warningText: {
+  securityText: {
     fontSize: 14,
-    color: "#444",
+    color: '#856404',
+    marginLeft: 12,
+    flex: 1,
+    lineHeight: 20,
   },
   promotions: {
     flexDirection: 'column',

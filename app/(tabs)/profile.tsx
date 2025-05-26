@@ -1,4 +1,4 @@
-import { Entypo, FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Entypo, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -27,15 +27,13 @@ export default function ProfileScreen() {
 
         <ProfileCard
           icon={<FontAwesome5 name="university" size={18} color="#1E1E50" />}
-          title="Bank Account Details"
-        />
-        <ProfileCard
-          icon={<MaterialIcons name="article" size={20} color="#1E1E50" />}
-          title="Account Opening Form"
+          title="InstaPay Account Details"
+          onPress={() => router.push('/profile/AccountDetails')}
         />
         <ProfileCard
           icon={<Entypo name="add-user" size={20} color="#1E1E50" />}
-          title="Invite Friend to Paynow"
+          title="Invite Friend to InstaPay"
+          onPress={() => router.push('/profile/Invite')}
         />
       </View>
     </View>

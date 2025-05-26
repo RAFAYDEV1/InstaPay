@@ -1,11 +1,87 @@
 import { Picker } from '@react-native-picker/picker';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Circle, Path, Svg } from 'react-native-svg';
 
+interface BillData {
+  billType: string;
+  consumerNumber: string;
+  amount: string;
+}
+
+interface BillPaymentSuccessScreenProps {
+  billType: string;
+  consumerNumber: string;
+  amount: string;
+}
+
+// Success Screen Component
+function BillPaymentSuccessScreen({ billType, consumerNumber, amount }: BillPaymentSuccessScreenProps) {
+  const router = useRouter();
+  return (
+    <View style={successStyles.container}>
+      {/* Success Icon */}
+      <View style={successStyles.iconContainer}>
+        <Svg width={120} height={120} viewBox="0 0 120 120">
+          {/* Outer glow circles */}
+          <Circle cx="60" cy="60" r="55" fill="rgba(72, 187, 120, 0.1)" />
+          <Circle cx="60" cy="60" r="45" fill="rgba(72, 187, 120, 0.2)" />
+          <Circle cx="60" cy="60" r="35" fill="rgba(72, 187, 120, 0.4)" />
+          <Circle cx="60" cy="60" r="28" fill="#48BB78" />
+          
+          {/* Checkmark */}
+          <Path
+            d="M45 60 L54 69 L75 48"
+            stroke="white"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        </Svg>
+      </View>
+
+      {/* Success Message */}
+      <Text style={successStyles.title}>Congratulations</Text>
+      
+      {/* Success Details */}
+      <View style={successStyles.detailsContainer}>
+        <Text style={successStyles.successText}>Bill Payment Successful</Text>
+        <Text style={successStyles.amountText}>Rs {amount}</Text>
+        <Text style={successStyles.billTypeText}>{billType} Bill</Text>
+        <Text style={successStyles.consumerText}>Consumer No: {consumerNumber}</Text>
+      </View>
+
+      {/* Action Buttons */}
+      <View style={successStyles.buttonContainer}>
+        <TouchableOpacity style={successStyles.primaryButton} onPress={() => router.push('/home')}>
+          <Text style={successStyles.primaryButtonText}>Done</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={successStyles.secondaryButton}>
+          <Text style={successStyles.secondaryButtonText}>View Receipt</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={successStyles.tertiaryButton}>
+          <Text style={successStyles.tertiaryButtonText}>Save for Later</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+// Main Utility Bills Screen Component
 export default function UtilityBillsScreen() {
   const [billType, setBillType] = useState('');
   const [consumerNumber, setConsumerNumber] = useState('');
   const [amount, setAmount] = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [billData, setBillData] = useState<BillData>({
+    billType: '',
+    consumerNumber: '',
+    amount: ''
+  });
 
   const handlePayment = () => {
     if (!billType || !consumerNumber || !amount) {
@@ -13,12 +89,23 @@ export default function UtilityBillsScreen() {
       return;
     }
 
-    Alert.alert('Success', `Rs ${amount} paid for ${billType} bill.`);
-    setBillType('');
-    setConsumerNumber('');
-    setAmount('');
+    // Store bill payment data and show success screen
+    setBillData({ billType, consumerNumber, amount });
+    setShowSuccess(true);
   };
 
+  // Show success screen if payment was successful
+  if (showSuccess) {
+    return (
+      <BillPaymentSuccessScreen
+        billType={billData.billType}
+        consumerNumber={billData.consumerNumber}
+        amount={billData.amount}
+      />
+    );
+  }
+
+  // Show utility bills form
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Pay Utility Bills</Text>
@@ -70,6 +157,7 @@ export default function UtilityBillsScreen() {
   );
 }
 
+// Original styles
 const styles = StyleSheet.create({
   container: {
     padding: 20,
@@ -116,5 +204,101 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+});
+
+// Success screen styles
+const successStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  iconContainer: {
+    marginBottom: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#0A0A3E',
+    marginBottom: 40,
+    textAlign: 'center',
+  },
+  detailsContainer: {
+    backgroundColor: '#F8F9FF',
+    paddingVertical: 20,
+    paddingHorizontal: 30,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 40,
+    width: '100%',
+  },
+  successText: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 8,
+  },
+  amountText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#0A0A3E',
+    marginBottom: 8,
+  },
+  billTypeText: {
+    fontSize: 16,
+    color: '#888',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  consumerText: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'monospace',
+  },
+  buttonContainer: {
+    width: '100%',
+    gap: 12,
+  },
+  primaryButton: {
+    backgroundColor: '#0A0A3E',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    width: '100%',
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    width: '100%',
+  },
+  secondaryButtonText: {
+    color: '#0A0A3E',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  tertiaryButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    width: '100%',
+  },
+  tertiaryButtonText: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '400',
   },
 });

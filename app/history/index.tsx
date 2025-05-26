@@ -26,7 +26,7 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    padding: 30,
     backgroundColor: '#fff',
   },
   heading: {
@@ -36,8 +36,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   activityCard: {
-    backgroundColor: '#F4F4F4',
-    padding: 15,
+    backgroundColor: '#0A0A3E',
+    padding: 20,
     borderRadius: 12,
     marginBottom: 12,
     shadowColor: '#000',
@@ -49,11 +49,11 @@ const styles = StyleSheet.create({
   activityLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+    color: '#fff',
   },
   activityDate: {
     fontSize: 13,
-    color: '#666',
+    color: '#F0F0F0',
     marginTop: 5,
   },
 });
