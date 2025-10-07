@@ -13,7 +13,8 @@ export default function SuccessScreen() {
       <TouchableOpacity style={styles.button} onPress={() => router.push('/home')}>
         <Text style={styles.buttonText}>Payment Successful</Text>
       </TouchableOpacity>
-    </View>
+    </View>+
+    
   );
 }
 

@@ -13,7 +13,6 @@ import {
 import { Dimensions } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 
-
 export default function HomeScreen() {
 
   const screenWidth = Dimensions.get("window").width;
