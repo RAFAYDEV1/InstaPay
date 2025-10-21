@@ -2,14 +2,12 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import {
   Animated,
-  Dimensions,
   Image,
   StyleSheet,
   Text,
-  View,
+  View
 } from 'react-native';
 
-const { width } = Dimensions.get('window');
 const SCAN_BOX_SIZE = 250;
 
 export default function CameraScreen() {

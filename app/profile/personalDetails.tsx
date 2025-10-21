@@ -1,8 +1,8 @@
-import { useImage } from '@/app/context/ImageContext'; // adjust path
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useImage } from '../context/ImageContext'; // adjust path
 
 export default function ProfileScreen() {
   const { imageUri, setImageUri } = useImage();

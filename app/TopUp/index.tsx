@@ -1,8 +1,10 @@
 import { Picker } from "@react-native-picker/picker";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -23,6 +25,14 @@ interface TopUpSuccessScreenProps {
   amount: string;
 }
 
+// Operator logos/icons (using colored backgrounds)
+const operatorColors: { [key: string]: string } = {
+  Jazz: "#E91E63",
+  Zong: "#9C27B0",
+  Telenor: "#2196F3",
+  Ufone: "#FF5722",
+};
+
 // Success Screen Component
 function TopUpSuccessScreen({
   operator,
@@ -30,51 +40,129 @@ function TopUpSuccessScreen({
   amount,
 }: TopUpSuccessScreenProps) {
   const router = useRouter();
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   return (
     <View style={successStyles.container}>
-      {/* Success Icon */}
-      <View style={successStyles.iconContainer}>
-        <Svg width={120} height={120} viewBox="0 0 120 120">
+      {/* Success Icon with Animation */}
+      <Animated.View
+        style={[
+          successStyles.iconContainer,
+          {
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        <Svg width={140} height={140} viewBox="0 0 140 140">
           {/* Outer glow circles */}
-          <Circle cx="60" cy="60" r="55" fill="rgba(72, 187, 120, 0.1)" />
-          <Circle cx="60" cy="60" r="45" fill="rgba(72, 187, 120, 0.2)" />
-          <Circle cx="60" cy="60" r="35" fill="rgba(72, 187, 120, 0.4)" />
-          <Circle cx="60" cy="60" r="28" fill="#48BB78" />
+          <Circle cx="70" cy="70" r="65" fill="rgba(34, 197, 94, 0.08)" />
+          <Circle cx="70" cy="70" r="52" fill="rgba(34, 197, 94, 0.15)" />
+          <Circle cx="70" cy="70" r="40" fill="rgba(34, 197, 94, 0.25)" />
+          <Circle cx="70" cy="70" r="32" fill="#22C55E" />
 
           {/* Checkmark */}
           <Path
-            d="M45 60 L54 69 L75 48"
+            d="M52 70 L62 80 L88 54"
             stroke="white"
-            strokeWidth="3"
+            strokeWidth="4"
             strokeLinecap="round"
             strokeLinejoin="round"
             fill="none"
           />
         </Svg>
-      </View>
+      </Animated.View>
 
       {/* Success Message */}
-      <Text style={successStyles.title}>Congratulations</Text>
+      <Animated.View style={{ opacity: fadeAnim }}>
+        <Text style={successStyles.title}>Top-Up Successful!</Text>
+        <Text style={successStyles.subtitle}>
+          Your recharge has been completed
+        </Text>
+      </Animated.View>
 
-      {/* Success Details */}
-      <View style={successStyles.detailsContainer}>
-        <Text style={successStyles.successText}>Top-Up Successful</Text>
-        <Text style={successStyles.amountText}>Rs {amount}</Text>
-        <Text style={successStyles.detailText}>to {mobileNumber}</Text>
-        <Text style={successStyles.operatorText}>via {operator}</Text>
-      </View>
+      {/* Success Details Card */}
+      <Animated.View
+        style={[
+          successStyles.detailsContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <View style={successStyles.amountSection}>
+          <Text style={successStyles.amountLabel}>AMOUNT RECHARGED</Text>
+          <Text style={successStyles.amountText}>Rs {amount}</Text>
+        </View>
+
+        <View style={successStyles.divider} />
+
+        <View style={successStyles.detailsGrid}>
+          <View style={successStyles.detailRow}>
+            <Text style={successStyles.detailLabel}>Mobile Number</Text>
+            <Text style={successStyles.detailValue}>{mobileNumber}</Text>
+          </View>
+
+          <View style={successStyles.detailRow}>
+            <Text style={successStyles.detailLabel}>Operator</Text>
+            <View style={successStyles.operatorBadge}>
+              <View
+                style={[
+                  successStyles.operatorDot,
+                  { backgroundColor: operatorColors[operator] || "#8B5CF6" },
+                ]}
+              />
+              <Text style={successStyles.detailValue}>{operator}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={successStyles.statusBadge}>
+          <View style={successStyles.statusDot} />
+          <Text style={successStyles.statusText}>Completed</Text>
+        </View>
+      </Animated.View>
 
       {/* Action Buttons */}
       <View style={successStyles.buttonContainer}>
         <TouchableOpacity
           style={successStyles.primaryButton}
           onPress={() => router.push("/home")}
+          activeOpacity={0.8}
         >
-          <Text style={successStyles.primaryButtonText}>Done</Text>
+          <Text style={successStyles.primaryButtonText}>Back to Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={successStyles.secondaryButton}>
-          <Text style={successStyles.secondaryButtonText}>View Receipt</Text>
+        <TouchableOpacity
+          style={successStyles.secondaryButton}
+          activeOpacity={0.7}
+        >
+          <Text style={successStyles.secondaryButtonText}>
+            📄 Download Receipt
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -87,6 +175,7 @@ export default function TopUpScreen() {
   const [mobileNumber, setMobileNumber] = useState("");
   const [amount, setAmount] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
+  const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const [topUpData, setTopUpData] = useState<TopUpData>({
     operator: "",
     mobileNumber: "",
@@ -99,17 +188,21 @@ export default function TopUpScreen() {
       return;
     }
 
+    // Validate mobile number format (basic validation)
+    if (mobileNumber.length !== 11 || !mobileNumber.startsWith("03")) {
+      Alert.alert("Error", "Please enter a valid mobile number (03XX-XXXXXXX)");
+      return;
+    }
+
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      Alert.alert("Error", "Please enter a valid amount.");
+      return;
+    }
+
     // Store top-up data and show success screen
     setTopUpData({ operator, mobileNumber, amount });
     setShowSuccess(true);
-  };
-
-  const handleGoBack = () => {
-    setShowSuccess(false);
-    setOperator("");
-    setMobileNumber("");
-    setAmount("");
-    setTopUpData({ operator: "", mobileNumber: "", amount: "" });
   };
 
   // Show success screen if top-up was successful
@@ -125,152 +218,546 @@ export default function TopUpScreen() {
 
   // Show top-up form
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Mobile Top-Up</Text>
+    <ScrollView style={styles.scrollView}>
+      <View style={styles.container}>
+        {/* Header Section */}
+        <View style={styles.header}>
+          <Text style={styles.heading}>Mobile Top-Up</Text>
+          <Text style={styles.subheading}>
+            Recharge your mobile instantly
+          </Text>
+        </View>
 
-      <Text style={styles.label}>Select Operator</Text>
-      <View style={styles.pickerWrapper}>
-        <Picker
-          selectedValue={operator}
-          onValueChange={(value) => setOperator(value)}
-          style={styles.picker}
+        {/* Form Card */}
+        <View style={styles.formCard}>
+          {/* Operator Selection */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>
+              <Text style={styles.labelIcon}>📱 </Text>
+              Select Operator
+            </Text>
+            <View style={[styles.pickerWrapper, operator && styles.pickerSelected]}>
+              <Picker
+                selectedValue={operator}
+                onValueChange={(value) => setOperator(value)}
+                style={styles.picker}
+              >
+                <Picker.Item label="Choose operator..." value="" color="#999" />
+                <Picker.Item label="Jazz" value="Jazz" />
+                <Picker.Item label="Zong" value="Zong" />
+                <Picker.Item label="Telenor" value="Telenor" />
+                <Picker.Item label="Ufone" value="Ufone" />
+              </Picker>
+              {operator && (
+                <View
+                  style={[
+                    styles.operatorIndicator,
+                    { backgroundColor: operatorColors[operator] },
+                  ]}
+                />
+              )}
+            </View>
+          </View>
+
+          {/* Operator Quick Select */}
+          <View style={styles.operatorQuickSelect}>
+            {["Jazz", "Zong", "Telenor", "Ufone"].map((op) => (
+              <TouchableOpacity
+                key={op}
+                style={[
+                  styles.operatorCard,
+                  operator === op && styles.operatorCardActive,
+                  { borderColor: operatorColors[op] },
+                ]}
+                onPress={() => setOperator(op)}
+                activeOpacity={0.7}
+              >
+                <View
+                  style={[
+                    styles.operatorColorDot,
+                    { backgroundColor: operatorColors[op] },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.operatorCardText,
+                    operator === op && styles.operatorCardTextActive,
+                  ]}
+                >
+                  {op}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Mobile Number Input */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>
+              <Text style={styles.labelIcon}>📞 </Text>
+              Mobile Number
+            </Text>
+            <View
+              style={[
+                styles.inputContainer,
+                focusedInput === "mobile" && styles.inputContainerFocused,
+              ]}
+            >
+              <Text style={styles.mobilePrefix}>+92</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="3XX-XXXXXXX"
+                placeholderTextColor="#999"
+                keyboardType="phone-pad"
+                value={mobileNumber}
+                onChangeText={(text) => {
+                  // Remove any non-numeric characters
+                  const cleaned = text.replace(/[^0-9]/g, "");
+                  setMobileNumber(cleaned);
+                }}
+                maxLength={11}
+                onFocus={() => setFocusedInput("mobile")}
+                onBlur={() => setFocusedInput(null)}
+              />
+            </View>
+            {mobileNumber && mobileNumber.length === 11 && (
+              <Text style={styles.validationSuccess}>✓ Valid number</Text>
+            )}
+          </View>
+
+          {/* Amount Input */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>
+              <Text style={styles.labelIcon}>💰 </Text>
+              Amount
+            </Text>
+            <View
+              style={[
+                styles.inputContainer,
+                focusedInput === "amount" && styles.inputContainerFocused,
+              ]}
+            >
+              <Text style={styles.currencyPrefix}>Rs</Text>
+              <TextInput
+                style={[styles.input, styles.amountInput]}
+                placeholder="0.00"
+                placeholderTextColor="#999"
+                keyboardType="numeric"
+                value={amount}
+                onChangeText={setAmount}
+                onFocus={() => setFocusedInput("amount")}
+                onBlur={() => setFocusedInput(null)}
+              />
+            </View>
+          </View>
+
+          {/* Quick Amount Selection */}
+          <View style={styles.quickAmountContainer}>
+            <Text style={styles.quickAmountLabel}>Quick amounts:</Text>
+            <View style={styles.quickAmountGrid}>
+              {["100", "200", "500", "1000"].map((quickAmount) => (
+                <TouchableOpacity
+                  key={quickAmount}
+                  style={[
+                    styles.quickAmountButton,
+                    amount === quickAmount && styles.quickAmountButtonActive,
+                  ]}
+                  onPress={() => setAmount(quickAmount)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.quickAmountText,
+                      amount === quickAmount && styles.quickAmountTextActive,
+                    ]}
+                  >
+                    Rs {quickAmount}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        {/* Info Card */}
+        <View style={styles.infoCard}>
+          <Text style={styles.infoIcon}>⚡</Text>
+          <Text style={styles.infoText}>
+            Instant recharge • Available 24/7 • No hidden charges
+          </Text>
+        </View>
+
+        {/* Top-Up Button */}
+        <TouchableOpacity
+          style={[
+            styles.topUpButton,
+            (!operator || !mobileNumber || !amount) &&
+              styles.topUpButtonDisabled,
+          ]}
+          onPress={handleTopUp}
+          activeOpacity={0.9}
+          disabled={!operator || !mobileNumber || !amount}
         >
-          <Picker.Item label="Choose operator..." value="" />
-          <Picker.Item label="Jazz" value="Jazz" />
-          <Picker.Item label="Zong" value="Zong" />
-          <Picker.Item label="Telenor" value="Telenor" />
-          <Picker.Item label="Ufone" value="Ufone" />
-        </Picker>
+          <Text style={styles.topUpButtonText}>Top Up Now</Text>
+          <Text style={styles.topUpButtonIcon}>→</Text>
+        </TouchableOpacity>
       </View>
-
-      <Text style={styles.label}>Mobile Number</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="03XX-XXXXXXX"
-        placeholderTextColor="#aaa"
-        keyboardType="phone-pad"
-        value={mobileNumber}
-        onChangeText={setMobileNumber}
-        maxLength={11}
-      />
-
-      <Text style={styles.label}>Amount (Rs)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter amount"
-        placeholderTextColor="#aaa"
-        keyboardType="numeric"
-        value={amount}
-        onChangeText={setAmount}
-      />
-
-      <TouchableOpacity style={styles.payButton} onPress={handleTopUp}>
-        <Text style={styles.payButtonText}>Top Up Now</Text>
-      </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
-// Original styles
+// Enhanced styles
 const styles = StyleSheet.create({
+  scrollView: {
+    flex: 1,
+    backgroundColor: "#F8F9FD",
+  },
   container: {
     padding: 20,
     paddingTop: 60,
-    backgroundColor: "#fff",
-    flex: 1,
+    paddingBottom: 40,
+  },
+  header: {
+    marginBottom: 30,
   },
   heading: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: "bold",
-    color: "#0A0A3E",
-    marginBottom: 30,
-    textAlign: "center",
+    color: "#0F172A",
+    marginBottom: 8,
+  },
+  subheading: {
+    fontSize: 15,
+    color: "#64748B",
+  },
+  formCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  inputGroup: {
+    marginBottom: 20,
   },
   label: {
-    color: "#555",
+    color: "#334155",
     fontSize: 14,
-    marginBottom: 6,
-    marginTop: 12,
+    fontWeight: "600",
+    marginBottom: 10,
   },
-  input: {
-    backgroundColor: "#F0F0F0",
-    padding: 14,
-    borderRadius: 10,
+  labelIcon: {
     fontSize: 16,
-    color: "#000",
   },
   pickerWrapper: {
-    backgroundColor: "#F0F0F0",
-    borderRadius: 10,
+    backgroundColor: "#F8F9FD",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
     overflow: "hidden",
+    position: "relative",
+  },
+  pickerSelected: {
+    borderColor: "#0A0A3E",
+    backgroundColor: "#fff",
   },
   picker: {
-    color: "#000",
+    color: "#0F172A",
+    fontSize: 16,
   },
-  payButton: {
-    backgroundColor: "#0A0A3E",
-    paddingVertical: 16,
+  operatorIndicator: {
+    position: "absolute",
+    right: 12,
+    top: "50%",
+    marginTop: -6,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  operatorQuickSelect: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 20,
+  },
+  operatorCard: {
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: "#F8F9FD",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 12,
-    marginTop: 30,
+    flexDirection: "row",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
   },
-  payButtonText: {
-    color: "#fff",
+  operatorCardActive: {
+    backgroundColor: "#fff",
+    borderWidth: 2,
+  },
+  operatorColorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  operatorCardText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  operatorCardTextActive: {
+    color: "#0F172A",
+  },
+  inputContainer: {
+    backgroundColor: "#F8F9FD",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    minHeight: 56,
+  },
+  inputContainerFocused: {
+    borderColor: "#0A0A3E",
+    backgroundColor: "#fff",
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: "#0F172A",
+    padding: 0,
+  },
+  mobilePrefix: {
     fontSize: 16,
     fontWeight: "600",
+    color: "#64748B",
+    marginRight: 8,
+  },
+  currencyPrefix: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#64748B",
+    marginRight: 8,
+  },
+  amountInput: {
+    fontSize: 20,
+    fontWeight: "600",
+  },
+  validationSuccess: {
+    fontSize: 12,
+    color: "#22C55E",
+    marginTop: 6,
+    fontWeight: "500",
+  },
+  quickAmountContainer: {
+    marginTop: 4,
+  },
+  quickAmountLabel: {
+    fontSize: 13,
+    color: "#64748B",
+    marginBottom: 10,
+    fontWeight: "500",
+  },
+  quickAmountGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  quickAmountButton: {
+    flex: 1,
+    minWidth: "22%",
+    backgroundColor: "#F1F5F9",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+  },
+  quickAmountButtonActive: {
+    backgroundColor: "#EEF2FF",
+    borderColor: "#0A0A3E",
+  },
+  quickAmountText: {
+    color: "#475569",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  quickAmountTextActive: {
+    color: "#0A0A3E",
+  },
+  infoCard: {
+    backgroundColor: "#ECFDF5",
+    padding: 16,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#D1FAE5",
+  },
+  infoIcon: {
+    fontSize: 18,
+    marginRight: 10,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#059669",
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+  topUpButton: {
+    backgroundColor: "#0A0A3E",
+    paddingVertical: 18,
+    borderRadius: 16,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    shadowColor: "#0A0A3E",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  topUpButtonDisabled: {
+    backgroundColor: "#CBD5E1",
+    shadowOpacity: 0,
+  },
+  topUpButtonText: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "700",
+    marginRight: 8,
+  },
+  topUpButtonIcon: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
   },
 });
 
-// Success screen styles
+// Enhanced success screen styles
 const successStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#F8F9FD",
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    padding: 24,
   },
   iconContainer: {
-    marginBottom: 40,
+    marginBottom: 32,
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "bold",
-    color: "#0A0A3E",
+    color: "#0F172A",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 15,
+    color: "#64748B",
     marginBottom: 40,
     textAlign: "center",
   },
   detailsContainer: {
-    backgroundColor: "#F8F9FF",
-    paddingVertical: 20,
-    paddingHorizontal: 30,
-    borderRadius: 12,
-    alignItems: "center",
-    marginBottom: 40,
+    backgroundColor: "#fff",
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+    borderRadius: 20,
     width: "100%",
+    marginBottom: 32,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  successText: {
-    fontSize: 16,
-    color: "#666",
+  amountSection: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  amountLabel: {
+    fontSize: 11,
+    color: "#64748B",
     marginBottom: 8,
+    fontWeight: "700",
+    letterSpacing: 1,
   },
   amountText: {
-    fontSize: 24,
+    fontSize: 36,
     fontWeight: "bold",
-    color: "#0A0A3E",
-    marginBottom: 8,
+    color: "#0F172A",
   },
-  detailText: {
-    fontSize: 16,
-    color: "#888",
-    marginBottom: 4,
+  divider: {
+    height: 1,
+    backgroundColor: "#E2E8F0",
+    marginVertical: 20,
   },
-  operatorText: {
+  detailsGrid: {
+    gap: 16,
+    marginBottom: 20,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  detailLabel: {
     fontSize: 14,
-    color: "#999",
-    fontStyle: "italic",
+    color: "#64748B",
+    fontWeight: "500",
+  },
+  detailValue: {
+    fontSize: 15,
+    color: "#0F172A",
+    fontWeight: "600",
+  },
+  operatorBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8F9FD",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  operatorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ECFDF5",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    alignSelf: "center",
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#22C55E",
+    marginRight: 8,
+  },
+  statusText: {
+    fontSize: 13,
+    color: "#059669",
+    fontWeight: "600",
   },
   buttonContainer: {
     width: "100%",
@@ -278,28 +765,33 @@ const successStyles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: "#0A0A3E",
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 16,
     alignItems: "center",
     width: "100%",
+    shadowColor: "#0A0A3E",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   primaryButtonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   secondaryButton: {
-    backgroundColor: "transparent",
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: "#fff",
+    paddingVertical: 18,
+    borderRadius: 16,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
     width: "100%",
   },
   secondaryButtonText: {
-    color: "#0A0A3E",
+    color: "#475569",
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600",
   },
 });
