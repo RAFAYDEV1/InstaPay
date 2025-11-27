@@ -16,7 +16,7 @@ export default function HomeScreen() {
   const screenWidth = Dimensions.get("window").width;
   const { imageUri } = useImage();
   const router = useRouter();
-  
+
   const buttons = [
     {
       label: "Transfer",
@@ -36,8 +36,8 @@ export default function HomeScreen() {
       URL: "/history",
       bgColor: "#9B59B6"
     },
-    { 
-      label: "Top Up", 
+    {
+      label: "Top Up",
       icon: <Entypo name="plus" size={28} color="#fff" />,
       URL: "/TopUp",
       bgColor: "#E67E22"
@@ -161,9 +161,9 @@ export default function HomeScreen() {
       {/* Quick Actions */}
       <View style={styles.buttonCard}>
         {buttons.map((btn) => (
-          <TouchableOpacity 
-            key={btn.label} 
-            style={[styles.iconButton, { backgroundColor: btn.bgColor }]} 
+          <TouchableOpacity
+            key={btn.label}
+            style={[styles.iconButton, { backgroundColor: btn.bgColor }]}
             onPress={() => router.push(btn.URL as any)}
           >
             {btn.icon}
@@ -210,7 +210,7 @@ export default function HomeScreen() {
           <Text style={styles.viewAll}>See All</Text>
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.paymentHistory}>
         {paymentHistory.map((transaction) => (
           <TouchableOpacity key={transaction.id} style={styles.transactionCard}>
@@ -223,7 +223,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.transactionRight}>
               <Text style={[
-                styles.transactionAmount, 
+                styles.transactionAmount,
                 { color: transaction.amount.startsWith('+') ? '#50C878' : '#0A0A3E' }
               ]}>
                 {transaction.amount}

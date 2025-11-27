@@ -1,4 +1,4 @@
-import { ArrowDownLeft, ArrowUpRight, Phone, User, Wifi, Zap } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Phone, User, Wifi, Zap } from 'lucide-react-native';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function History() {
@@ -11,10 +11,10 @@ export default function History() {
     { id: '6', label: 'Internet Bill', amount: -1800, date: '2025-05-19', type: 'bill', icon: 'wifi' },
   ];
 
-  const getIcon = (iconType:string) => {
+  const getIcon = (iconType: string) => {
     const iconProps = { size: 20, color: '#fff' };
     switch (iconType) {
-      
+
       case 'zap': return <Zap {...iconProps} />;
       case 'wifi': return <Wifi {...iconProps} />;
       case 'phone': return <Phone {...iconProps} />;
@@ -22,7 +22,7 @@ export default function History() {
     }
   };
 
-  const formatDate = (dateStr:string) => {
+  const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     const today = new Date();
     const yesterday = new Date(today);
@@ -30,7 +30,7 @@ export default function History() {
 
     if (date.toDateString() === today.toDateString()) return 'Today';
     if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-    
+
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
@@ -68,10 +68,10 @@ export default function History() {
 
       {/* Transactions List */}
       <Text style={styles.sectionTitle}>All Transactions</Text>
-      
+
       {recentActivities.map((item, index) => (
-        <TouchableOpacity 
-          key={item.id} 
+        <TouchableOpacity
+          key={item.id}
           style={[
             styles.activityCard,
             index === 0 && styles.firstCard
@@ -85,7 +85,7 @@ export default function History() {
             ]}>
               {getIcon(item.icon)}
             </View>
-            
+
             <View style={styles.activityInfo}>
               <Text style={styles.activityLabel}>{item.label}</Text>
               <Text style={styles.activityDate}>{formatDate(item.date)}</Text>

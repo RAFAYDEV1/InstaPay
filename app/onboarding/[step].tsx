@@ -127,11 +127,11 @@ export default function OnboardingStep() {
   return (
     <View style={styles.container}>
       {/* Dynamic Background */}
-      <View 
+      <View
         style={[
-          styles.backgroundGradient, 
+          styles.backgroundGradient,
           { backgroundColor: currentData.color }
-        ]} 
+        ]}
       />
       <View style={styles.backgroundPattern}>
         <View style={[styles.circle1, { backgroundColor: `${currentData.color}20` }]} />
@@ -148,7 +148,7 @@ export default function OnboardingStep() {
       {/* Content */}
       <View style={styles.content}>
         {/* Image Section */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.imageContainer,
             {
@@ -166,7 +166,7 @@ export default function OnboardingStep() {
         </Animated.View>
 
         {/* Text Section */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.textContainer,
             {
@@ -204,15 +204,15 @@ export default function OnboardingStep() {
       </View>
 
       {/* Navigation Buttons */}
-      <Animated.View 
+      <Animated.View
         style={[
           styles.navigationContainer,
           { opacity: fadeAnim }
         ]}
       >
         {index > 0 && (
-          <TouchableOpacity 
-            style={styles.backButton} 
+          <TouchableOpacity
+            style={styles.backButton}
             onPress={goBack}
             activeOpacity={0.7}
           >
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
   progressDotActive: {
-    width: 32,
+    width: 10,
   },
   navigationContainer: {
     flexDirection: 'row',

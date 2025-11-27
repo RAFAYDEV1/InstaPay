@@ -7,7 +7,7 @@ type ImageContextType = {
 
 const ImageContext = createContext<ImageContextType>({
   imageUri: null,
-  setImageUri: () => {},
+  setImageUri: () => { },
 });
 
 export const ImageProvider = ({ children }: { children: React.ReactNode }) => {
