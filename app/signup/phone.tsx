@@ -1,7 +1,8 @@
 import { AntDesign } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Animated,
   Dimensions,
   KeyboardAvoidingView,
@@ -14,17 +15,21 @@ import {
   View
 } from 'react-native';
 
+import { router } from 'expo-router';
+import ApiService from '../../services/api.service';
+
 const { width } = Dimensions.get('window');
 
 export default function PhoneSignUp() {
-  const router = useRouter();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [step, setStep] = useState<'form' | 'otp'>('form');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(60);
-  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
   const otpInputs = useRef<(TextInput | null)[]>([]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -53,17 +58,64 @@ export default function PhoneSignUp() {
     }
   }, [step, timer]);
 
-  const handleSendOTP = () => {
-    // Logic will be added later
-    fadeAnim.setValue(0);
-    slideAnim.setValue(30);
-    setStep('otp');
-    setTimer(60);
+  const handleSendOTP = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const response = await ApiService.sendOTP(phoneNumber);
+
+      if (response.success) {
+        fadeAnim.setValue(0);
+        slideAnim.setValue(30);
+        setStep('otp');
+        setTimer(60);
+        Alert.alert('Success', 'OTP sent successfully! Check the backend console for the code.');
+      } else {
+        setError(response.error || 'Failed to send OTP');
+        Alert.alert('Error', response.error || 'Failed to send OTP');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Network error');
+      Alert.alert('Error', err.message || 'Network error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleVerifyOTP = () => {
-    // Logic will be added later
-    router.push('/(tabs)/home'); // Navigate to home after verification
+  const handleVerifyOTP = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const otpString = otp.join('');
+      const response = await ApiService.verifyOTP(phoneNumber, otpString);
+
+      if (response.success && response.data) {
+        const { user, tokens, isNewUser } = response.data;
+
+        // If new user, update profile with name and email
+        if (isNewUser && tokens.accessToken) {
+          await ApiService.updateProfile(tokens.accessToken, {
+            fullName,
+            email,
+          });
+        }
+
+        // Store tokens (you might want to use AsyncStorage here)
+        // For now, just navigate
+        Alert.alert('Success', `Welcome ${isNewUser ? '' : 'back'}!`);
+        router.replace('/(tabs)/home');
+      } else {
+        setError(response.error || 'Invalid OTP');
+        Alert.alert('Error', response.error || 'Invalid OTP');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Verification failed');
+      Alert.alert('Error', err.message || 'Verification failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOtpChange = (value: string, index: number) => {
@@ -84,17 +136,32 @@ export default function PhoneSignUp() {
     }
   };
 
-  const handleResendOTP = () => {
-    setTimer(60);
-    setOtp(['', '', '', '', '', '']);
-    // Logic to resend OTP will be added later
+  const handleResendOTP = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const response = await ApiService.sendOTP(phoneNumber);
+
+      if (response.success) {
+        setTimer(60);
+        setOtp(['', '', '', '', '', '']);
+        Alert.alert('Success', 'OTP resent successfully!');
+      } else {
+        Alert.alert('Error', response.error || 'Failed to resend OTP');
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Network error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isFormValid = phoneNumber.length >= 10 && fullName.length > 0 && email.length > 0;
   const isOtpComplete = otp.every(digit => digit !== '');
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
@@ -102,13 +169,13 @@ export default function PhoneSignUp() {
       <View style={styles.backgroundCircle1} />
       <View style={styles.backgroundCircle2} />
 
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.header,
             {
@@ -117,7 +184,7 @@ export default function PhoneSignUp() {
             }
           ]}
         >
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => step === 'otp' ? setStep('form') : router.back()}
           >
@@ -132,7 +199,7 @@ export default function PhoneSignUp() {
             {step === 'form' ? 'Enter Your Details' : 'Verify Your Phone'}
           </Text>
           <Text style={styles.subtitle}>
-            {step === 'form' 
+            {step === 'form'
               ? 'We need some information to create your account'
               : `Enter the 6-digit code sent to ${phoneNumber}`}
           </Text>
@@ -156,7 +223,7 @@ export default function PhoneSignUp() {
                 <AntDesign name="user" size={20} color="#9CA3AF" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Ali"
+                  placeholder="Muhammad Ahmed"
                   placeholderTextColor="#9CA3AF"
                   value={fullName}
                   onChangeText={setFullName}
@@ -214,13 +281,19 @@ export default function PhoneSignUp() {
 
             {/* Continue Button */}
             <TouchableOpacity
-              style={[styles.primaryButton, !isFormValid && styles.buttonDisabled]}
+              style={[styles.primaryButton, (!isFormValid || loading) && styles.buttonDisabled]}
               onPress={handleSendOTP}
-              disabled={!isFormValid}
+              disabled={!isFormValid || loading}
               activeOpacity={0.8}
             >
-              <Text style={styles.primaryButtonText}>Send Verification Code</Text>
-              <AntDesign name="arrow-right" size={20} color="#fff" />
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.primaryButtonText}>Send Verification Code</Text>
+                  <AntDesign name="arrow-right" size={20} color="#fff" />
+                </>
+              )}
             </TouchableOpacity>
           </Animated.View>
         )}
@@ -246,7 +319,7 @@ export default function PhoneSignUp() {
               {otp.map((digit, index) => (
                 <TextInput
                   key={index}
-                  ref={(ref) => (otpInputs.current[index] = ref)}
+                  ref={(ref) => { otpInputs.current[index] = ref; }}
                   style={[
                     styles.otpInput,
                     digit && styles.otpInputFilled
@@ -276,17 +349,23 @@ export default function PhoneSignUp() {
 
             {/* Verify Button */}
             <TouchableOpacity
-              style={[styles.primaryButton, !isOtpComplete && styles.buttonDisabled]}
+              style={[styles.primaryButton, (!isOtpComplete || loading) && styles.buttonDisabled]}
               onPress={handleVerifyOTP}
-              disabled={!isOtpComplete}
+              disabled={!isOtpComplete || loading}
               activeOpacity={0.8}
             >
-              <Text style={styles.primaryButtonText}>Verify & Continue</Text>
-              <AntDesign name="check-circle" size={20} color="#fff"/>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.primaryButtonText}>Verify & Continue</Text>
+                  <AntDesign name="check-circle" size={20} color="#fff" />
+                </>
+              )}
             </TouchableOpacity>
 
             {/* Change Number */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.changeNumberButton}
               onPress={() => setStep('form')}
             >
