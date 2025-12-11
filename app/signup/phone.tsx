@@ -1,10 +1,11 @@
 import { AntDesign } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Dimensions,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,10 +18,12 @@ import {
 
 import { router } from 'expo-router';
 import ApiService from '../../services/api.service';
+import SessionService from '../../services/session.service';
 
 const { width } = Dimensions.get('window');
 
 export default function PhoneSignUp() {
+  const [imageUri, setImageUri] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -29,7 +32,7 @@ export default function PhoneSignUp() {
   const [timer, setTimer] = useState(60);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
+  const [banner, setBanner] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const otpInputs = useRef<(TextInput | null)[]>([]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -58,26 +61,51 @@ export default function PhoneSignUp() {
     }
   }, [step, timer]);
 
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setBanner({ type: 'error', message: 'Permission is required to access the gallery.' });
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
+  const formatPhone = () => {
+    if (phoneNumber.startsWith('+')) return phoneNumber;
+    return `+92${phoneNumber}`;
+  };
+
   const handleSendOTP = async () => {
     try {
       setLoading(true);
       setError('');
 
-      const response = await ApiService.sendOTP(phoneNumber);
+      const response = await ApiService.sendOTP(formatPhone());
 
       if (response.success) {
+        setBanner({ type: 'success', message: 'OTP sent successfully! Check your phone.' });
         fadeAnim.setValue(0);
         slideAnim.setValue(30);
         setStep('otp');
         setTimer(60);
-        Alert.alert('Success', 'OTP sent successfully! Check the backend console for the code.');
       } else {
-        setError(response.error || 'Failed to send OTP');
-        Alert.alert('Error', response.error || 'Failed to send OTP');
+        const msg = response.error || 'Failed to send OTP';
+        setError(msg);
+        setBanner({ type: 'error', message: msg });
       }
     } catch (err: any) {
       setError(err.message || 'Network error');
-      Alert.alert('Error', err.message || 'Network error');
+      setBanner({ type: 'error', message: err.message || 'Network error' });
     } finally {
       setLoading(false);
     }
@@ -89,30 +117,80 @@ export default function PhoneSignUp() {
       setError('');
 
       const otpString = otp.join('');
-      const response = await ApiService.verifyOTP(phoneNumber, otpString);
+      const response = await ApiService.verifyOTP(
+        formatPhone(),
+        otpString
+      );
 
-      if (response.success && response.data) {
-        const { user, tokens, isNewUser } = response.data;
+      if (!response.success || !response.data) {
+        const msg = response.error || response.message || 'Invalid OTP';
+        setError(msg);
+        setBanner({ type: 'error', message: msg });
+        return;
+      }
 
-        // If new user, update profile with name and email
-        if (isNewUser && tokens.accessToken) {
-          await ApiService.updateProfile(tokens.accessToken, {
+      const { user, tokens, isNewUser } = response.data;
+
+      if (tokens?.accessToken) {
+        await SessionService.saveSession(
+          {
+            accessToken: tokens.accessToken,
+            firebaseToken: tokens.firebaseToken,
+          },
+          {
+            id: user.id,
+            phoneNumber: user.phoneNumber,
             fullName,
             email,
-          });
-        }
-
-        // Store tokens (you might want to use AsyncStorage here)
-        // For now, just navigate
-        Alert.alert('Success', `Welcome ${isNewUser ? '' : 'back'}!`);
-        router.replace('/(tabs)/home');
+            profileImageUrl: user.profileImageUrl,
+          }
+        );
       } else {
-        setError(response.error || 'Invalid OTP');
-        Alert.alert('Error', response.error || 'Invalid OTP');
+        setBanner({ type: 'error', message: 'Missing access token from server' });
+        return;
       }
+
+      if (isNewUser && tokens.accessToken) {
+        await ApiService.updateProfile(tokens.accessToken, {
+          fullName,
+          email,
+        });
+
+        if (imageUri) {
+          try {
+            await ApiService.uploadProfileImage(tokens.accessToken, imageUri);
+
+            // Refresh profile to get the uploaded image URL
+            const profileRes = await ApiService.getProfile(tokens.accessToken);
+            if (profileRes.success && profileRes.data) {
+              await SessionService.saveSession(
+                {
+                  accessToken: tokens.accessToken,
+                  firebaseToken: tokens.firebaseToken,
+                },
+                profileRes.data
+              );
+            }
+          } catch (uploadErr) {
+            console.warn('Failed to upload profile image:', uploadErr);
+            // Non-blocking error, user can still proceed
+          }
+        }
+      } else if (!isNewUser) {
+        // User already exists, show banner and redirect to login if needed, or just stop
+        setBanner({ type: 'error', message: 'User with this phone/email already exists. Please login.' });
+        // Optional: clear session or handle logout if the API automatically logged them in
+        if (tokens?.accessToken) {
+          await ApiService.logout(tokens.accessToken);
+        }
+        return;
+      }
+
+      setBanner({ type: 'success', message: `Welcome ${isNewUser ? '' : 'back'}!` });
+      router.replace('/(tabs)/home');
     } catch (err: any) {
       setError(err.message || 'Verification failed');
-      Alert.alert('Error', err.message || 'Verification failed');
+      setBanner({ type: 'error', message: err.message || 'Verification failed' });
     } finally {
       setLoading(false);
     }
@@ -141,17 +219,17 @@ export default function PhoneSignUp() {
       setLoading(true);
       setError('');
 
-      const response = await ApiService.sendOTP(phoneNumber);
+      const response = await ApiService.sendOTP(formatPhone());
 
       if (response.success) {
         setTimer(60);
         setOtp(['', '', '', '', '', '']);
-        Alert.alert('Success', 'OTP resent successfully!');
+        setBanner({ type: 'success', message: 'OTP resent successfully!' });
       } else {
-        Alert.alert('Error', response.error || 'Failed to resend OTP');
+        setBanner({ type: 'error', message: response.error || 'Failed to resend OTP' });
       }
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Network error');
+      setBanner({ type: 'error', message: err.message || 'Network error' });
     } finally {
       setLoading(false);
     }
@@ -174,6 +252,27 @@ export default function PhoneSignUp() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
+        {banner && (
+          <View
+            style={[
+              styles.banner,
+              banner.type === 'success' && styles.bannerSuccess,
+              banner.type === 'error' && styles.bannerError,
+              banner.type === 'info' && styles.bannerInfo,
+            ]}
+          >
+            <Text
+              style={[
+                styles.bannerText,
+                banner.type === 'success' && styles.bannerTextSuccess,
+                banner.type === 'error' && styles.bannerTextError,
+                banner.type === 'info' && styles.bannerTextInfo,
+              ]}
+            >
+              {banner.message}
+            </Text>
+          </View>
+        )}
         {/* Header */}
         <Animated.View
           style={[
@@ -216,6 +315,23 @@ export default function PhoneSignUp() {
               }
             ]}
           >
+            {/* Profile Picture Selection */}
+            <View style={styles.avatarContainer}>
+              <TouchableOpacity onPress={pickImage} style={styles.avatarButton}>
+                {imageUri ? (
+                  <Image source={{ uri: imageUri }} style={styles.avatarImage} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <AntDesign name="camera" size={32} color="#4F46E5" />
+                    <Text style={styles.avatarText}>Add Photo</Text>
+                  </View>
+                )}
+                <View style={styles.editIconContainer}>
+                  <AntDesign name="plus" size={16} color="#fff" />
+                </View>
+              </TouchableOpacity>
+            </View>
+
             {/* Full Name Input */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Full Name</Text>
@@ -602,5 +718,79 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#6B7280',
     fontWeight: '600',
+  },
+  banner: {
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  bannerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  bannerSuccess: {
+    backgroundColor: '#ECFDF3',
+    borderColor: '#A7F3D0',
+  },
+  bannerError: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  bannerInfo: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+  },
+  bannerTextSuccess: {
+    color: '#166534',
+  },
+  bannerTextError: {
+    color: '#991B1B',
+  },
+  bannerTextInfo: {
+    color: '#1D4ED8',
+  },
+  avatarContainer: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  avatarButton: {
+    position: 'relative',
+  },
+  avatarImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#C7D2FE',
+    borderStyle: 'dashed',
+  },
+  avatarText: {
+    fontSize: 12,
+    color: '#4F46E5',
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  editIconContainer: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#4F46E5',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
 });

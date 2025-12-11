@@ -1,11 +1,48 @@
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import React from 'react';
+import QRCode from 'qrcode';
+import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import SessionService from '../../services/session.service';
 import { useImage } from '../context/ImageContext'; // adjust path
 
 export default function ProfileScreen() {
   const { imageUri, setImageUri } = useImage();
+  const [fullName, setFullName] = useState('User');
+  const [username, setUsername] = useState('instapay-user');
+  const [phone, setPhone] = useState('—');
+  const [email, setEmail] = useState('—');
+  const [qrUri, setQrUri] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const stored = await SessionService.getUser();
+      if (stored?.fullName) setFullName(stored.fullName);
+      if (stored?.phoneNumber) {
+        setPhone(stored.phoneNumber);
+        setUsername(stored.phoneNumber.replace('+', '').slice(-8));
+        generateQr(stored);
+      }
+      if (stored?.email) setEmail(stored.email);
+      if (stored?.profileImageUrl) setImageUri(stored.profileImageUrl);
+    };
+    loadUser();
+  }, []);
+
+  const generateQr = async (user: any) => {
+    try {
+      const payload = JSON.stringify({
+        type: 'instapay_user',
+        id: user.id,
+        phone: user.phoneNumber,
+        name: user.fullName,
+      });
+      const uri = await QRCode.toDataURL(payload);
+      setQrUri(uri);
+    } catch (err) {
+      console.warn('QR generation failed', err);
+    }
+  };
 
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -52,33 +89,47 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           </View>
-          <Text style={styles.profileName}>Abdur Rafay Ali</Text>
-          <Text style={styles.profileHandle}>@Rafay2003</Text>
+          <Text style={styles.profileName}>{fullName}</Text>
+          <Text style={styles.profileHandle}>@{username}</Text>
         </View>
 
         {/* Info Fields */}
         <View style={styles.fieldsContainer}>
-          <Field 
-            icon="user" 
-            label="Full Name" 
-            value="Abdur Rafay Ali" 
+          <Field
+            icon="user"
+            label="Full Name"
+            value={fullName}
           />
-          <Field 
-            icon="at-sign" 
-            label="Username" 
-            value="Rafay2003" 
+          <Field
+            icon="at-sign"
+            label="Username"
+            value={`@${username}`}
           />
-          <Field 
-            icon="phone" 
-            label="Mobile Number" 
-            value="03000755519"
+          <Field
+            icon="phone"
+            label="Mobile Number"
+            value={phone}
           />
-          <Field 
-            icon="mail" 
-            label="Email Address" 
-            value="raffay@gmail.com" 
+          <Field
+            icon="mail"
+            label="Email Address"
+            value={email}
           />
         </View>
+      </View>
+
+      {/* QR Code */}
+      <View style={styles.qrCard}>
+        <Text style={styles.qrTitle}>Your InstaPay QR</Text>
+        <Text style={styles.qrSubtitle}>Scan to pay or request money</Text>
+        {qrUri ? (
+          <Image source={{ uri: qrUri }} style={styles.qrImage} />
+        ) : (
+          <View style={styles.qrPlaceholder}>
+            <Text style={styles.qrPlaceholderText}>Generating...</Text>
+          </View>
+        )}
+        <Text style={styles.qrHint}>{phone}</Text>
       </View>
 
       {/* Note Section */}
@@ -102,15 +153,15 @@ export default function ProfileScreen() {
 }
 
 // Enhanced Field component
-const Field = ({ 
-  icon, 
-  label, 
-  value, 
-  sensitive = false 
-}: { 
-  icon: string; 
-  label: string; 
-  value: string; 
+const Field = ({
+  icon,
+  label,
+  value,
+  sensitive = false
+}: {
+  icon: string;
+  label: string;
+  value: string;
   sensitive?: boolean;
 }) => (
   <View style={styles.fieldContainer}>
@@ -278,6 +329,55 @@ const styles = StyleSheet.create({
     color: '#555',
     lineHeight: 20,
     flex: 1,
+  },
+  qrCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 24,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  qrTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E1E50',
+  },
+  qrSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 4,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  qrImage: {
+    width: 180,
+    height: 180,
+    marginVertical: 8,
+  },
+  qrPlaceholder: {
+    width: 180,
+    height: 180,
+    marginVertical: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrPlaceholderText: {
+    color: '#9CA3AF',
+    fontSize: 13,
+  },
+  qrHint: {
+    marginTop: 8,
+    color: '#1E1E50',
+    fontWeight: '600',
   },
   actionButtons: {
     paddingHorizontal: 20,

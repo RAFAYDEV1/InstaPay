@@ -1,6 +1,8 @@
 import { Entypo, FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   Image,
   ScrollView,
@@ -10,12 +12,34 @@ import {
   View
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
+import ApiService from "../../services/api.service";
+import SessionService from "../../services/session.service";
 import { useImage } from "../context/ImageContext";
+
+type Transaction = {
+  id: number;
+  amount: number;
+  currency: string;
+  created_at: string;
+  transaction_type: string;
+  status: string;
+  sender_id?: number;
+  receiver_id?: number;
+  receiver_name?: string;
+  sender_name?: string;
+  description?: string;
+};
 
 export default function HomeScreen() {
   const screenWidth = Dimensions.get("window").width;
   const { imageUri } = useImage();
   const router = useRouter();
+
+  const [wallet, setWallet] = useState<any>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState("User");
+  const [userId, setUserId] = useState<number | undefined>(undefined);
 
   const buttons = [
     {
@@ -44,16 +68,76 @@ export default function HomeScreen() {
     },
   ];
 
-  const data = {
-    labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    datasets: [
-      {
-        data: [3000, 5000, 3500, 4000, 6000, 4500, 5000],
-        color: () => "#4A90E2",
-        strokeWidth: 3,
-      },
-    ],
-  };
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [token, storedUser] = await Promise.all([
+        SessionService.getAccessToken(),
+        SessionService.getUser(),
+      ]);
+
+      if (storedUser?.fullName) setUserName(storedUser.fullName);
+      if (storedUser?.id) setUserId(storedUser.id);
+
+      if (!token) {
+        setTransactions([]);
+        setWallet(null);
+        return;
+      }
+
+      const [walletRes, txRes] = await Promise.all([
+        ApiService.getWalletBalance(token),
+        ApiService.getTransactions(token, { limit: 10 }),
+      ]);
+
+      if (walletRes.success && walletRes.data?.wallet) {
+        setWallet(walletRes.data.wallet);
+      }
+
+      if (txRes.success && txRes.data?.transactions) {
+        setTransactions(txRes.data.transactions);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const chartData = useMemo(() => {
+    const labels: string[] = [];
+    const values: number[] = [];
+    const now = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(now.getDate() - i);
+      labels.push(date.toLocaleDateString("en-US", { weekday: "short" }));
+      const totalForDay = transactions.reduce((sum, tx) => {
+        const txDate = new Date(tx.created_at);
+        if (txDate.toDateString() !== date.toDateString()) return sum;
+        const amount = Number(tx.amount) || 0;
+        if (userId && tx.sender_id === userId) {
+          return sum - amount;
+        }
+        return sum + amount;
+      }, 0);
+      values.push(Math.abs(totalForDay));
+    }
+
+    return {
+      labels,
+      datasets: [
+        {
+          data: values,
+          color: () => "#4A90E2",
+          strokeWidth: 3,
+        },
+      ],
+    };
+  }, [transactions, userId]);
 
   const chartConfig = {
     backgroundGradientFrom: "#fff",
@@ -68,58 +152,47 @@ export default function HomeScreen() {
     },
   };
 
-  const paymentHistory = [
-    {
-      id: 1,
-      name: 'Ali Khan',
-      type: 'Transfer',
-      amount: '-Rs 2,500',
-      date: 'Today, 2:30 PM',
-      icon: 'arrow-up',
-      color: '#E74C3C'
-    },
-    {
-      id: 2,
-      name: 'K-Electric',
-      type: 'Utility Bill',
-      amount: '-Rs 3,200',
-      date: 'Yesterday, 10:15 AM',
-      icon: 'flash',
-      color: '#E67E22'
-    },
-    {
-      id: 3,
-      name: 'Salary Credit',
-      type: 'Received',
-      amount: '+Rs 45,000',
-      date: 'Oct 1, 2025',
-      icon: 'arrow-down',
-      color: '#50C878'
-    },
-    {
-      id: 4,
-      name: 'SSGC Bill',
-      type: 'Utility Bill',
-      amount: '-Rs 1,800',
-      date: 'Sep 28, 2025',
-      icon: 'flame',
-      color: '#E67E22'
-    },
-    {
-      id: 5,
-      name: 'Mobile Top Up',
-      type: 'Recharge',
-      amount: '-Rs 500',
-      date: 'Sep 27, 2025',
-      icon: 'phone-portrait',
-      color: '#9B59B6'
-    },
-  ];
+  const quickStats = useMemo(() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const quickStats = [
-    { label: 'This Month', value: 'Rs 8,450', icon: 'trending-up', color: '#50C878' },
-    { label: 'Savings Goal', value: '68%', icon: 'flag', color: '#4A90E2' },
-  ];
+    const monthly = transactions.filter(
+      (tx) => new Date(tx.created_at) >= monthStart
+    );
+
+    const totals = monthly.reduce(
+      (acc, tx) => {
+        const amount = Number(tx.amount) || 0;
+        if (userId && tx.sender_id === userId) {
+          acc.sent += amount;
+        } else {
+          acc.received += amount;
+        }
+        return acc;
+      },
+      { sent: 0, received: 0 }
+    );
+
+    return [
+      {
+        label: "Sent This Month",
+        value: `Rs ${totals.sent.toLocaleString()}`,
+        icon: "trending-down",
+        color: "#E74C3C",
+      },
+      {
+        label: "Received",
+        value: `Rs ${totals.received.toLocaleString()}`,
+        icon: "trending-up",
+        color: "#50C878",
+      },
+    ];
+  }, [transactions, userId]);
+
+  const recentTransactions = useMemo(
+    () => transactions.slice(0, 5),
+    [transactions]
+  );
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -135,8 +208,8 @@ export default function HomeScreen() {
           style={styles.avatar}
         />
         <View style={styles.headerText}>
-          <Text style={styles.hello}>Good Morning</Text>
-          <Text style={styles.username}>Rafay</Text>
+          <Text style={styles.hello}>Welcome back</Text>
+          <Text style={styles.username}>{userName}</Text>
         </View>
         <Ionicons name="notifications-outline" size={24} color="#0A0A3E" style={styles.notificationIcon} />
       </TouchableOpacity>
@@ -144,7 +217,13 @@ export default function HomeScreen() {
       {/* Balance Card */}
       <View style={styles.balanceCard}>
         <Text style={styles.balanceLabel}>Available Balance</Text>
-        <Text style={styles.balance}>Rs 13,250</Text>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.balance}>
+            {wallet ? `${wallet.currency} ${Number(wallet.balance).toLocaleString()}` : '—'}
+          </Text>
+        )}
         <View style={styles.statsRow}>
           {quickStats.map((stat, idx) => (
             <View key={idx} style={styles.statItem}>
@@ -175,19 +254,23 @@ export default function HomeScreen() {
       {/* Activity Chart */}
       <View style={styles.chart}>
         <View style={styles.chartHeader}>
-          <Text style={styles.chartLabel}>Weekly Spending</Text>
-          <TouchableOpacity>
-            <Text style={styles.viewAll}>View All</Text>
+          <Text style={styles.chartLabel}>Weekly Activity</Text>
+          <TouchableOpacity onPress={loadData}>
+            <Text style={styles.viewAll}>Refresh</Text>
           </TouchableOpacity>
         </View>
-        <LineChart
-          data={data}
-          width={screenWidth - 40}
-          height={200}
-          chartConfig={chartConfig}
-          bezier
-          style={styles.chartStyle}
-        />
+        {loading ? (
+          <ActivityIndicator />
+        ) : (
+          <LineChart
+            data={chartData}
+            width={screenWidth - 40}
+            height={200}
+            chartConfig={chartConfig}
+            bezier
+            style={styles.chartStyle}
+          />
+        )}
       </View>
 
       {/* Security Notice */}
@@ -212,26 +295,35 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.paymentHistory}>
-        {paymentHistory.map((transaction) => (
-          <TouchableOpacity key={transaction.id} style={styles.transactionCard}>
-            <View style={[styles.transactionIcon, { backgroundColor: transaction.color + '20' }]}>
-              <Ionicons name={transaction.icon as any} size={20} color={transaction.color} />
-            </View>
-            <View style={styles.transactionDetails}>
-              <Text style={styles.transactionName}>{transaction.name}</Text>
-              <Text style={styles.transactionType}>{transaction.type}</Text>
-            </View>
-            <View style={styles.transactionRight}>
-              <Text style={[
-                styles.transactionAmount,
-                { color: transaction.amount.startsWith('+') ? '#50C878' : '#0A0A3E' }
-              ]}>
-                {transaction.amount}
-              </Text>
-              <Text style={styles.transactionDate}>{transaction.date}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+        {loading ? (
+          <ActivityIndicator />
+        ) : (
+          recentTransactions.map((transaction) => {
+            const isSent = userId && transaction.sender_id === userId;
+            const amountDisplay = `${isSent ? '-' : '+'}Rs ${Number(transaction.amount).toLocaleString()}`;
+            const color = isSent ? '#E74C3C' : '#50C878';
+            const counterparty = isSent ? transaction.receiver_name || 'Recipient' : transaction.sender_name || 'Sender';
+            return (
+              <TouchableOpacity key={transaction.id} style={styles.transactionCard}>
+                <View style={[styles.transactionIcon, { backgroundColor: color + '20' }]}>
+                  <Ionicons name={isSent ? 'arrow-up' : 'arrow-down'} size={20} color={color} />
+                </View>
+                <View style={styles.transactionDetails}>
+                  <Text style={styles.transactionName}>{counterparty}</Text>
+                  <Text style={styles.transactionType}>{transaction.transaction_type || 'transaction'}</Text>
+                </View>
+                <View style={styles.transactionRight}>
+                  <Text style={[styles.transactionAmount, { color }]}>
+                    {amountDisplay}
+                  </Text>
+                  <Text style={styles.transactionDate}>
+                    {new Date(transaction.created_at).toLocaleDateString()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </View>
     </ScrollView>
   );

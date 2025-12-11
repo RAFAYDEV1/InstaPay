@@ -119,14 +119,9 @@ class ApiService {
      * Send OTP to phone number
      */
     async sendOTP(phoneNumber: string): Promise<ApiResponse<SendOTPResponse>> {
-        // Format phone number to include country code
-        const formattedPhone = phoneNumber.startsWith('+92')
-            ? phoneNumber
-            : `+92${phoneNumber}`;
-
         return this.request<SendOTPResponse>(API_ENDPOINTS.SEND_OTP, {
             method: 'POST',
-            body: JSON.stringify({ phoneNumber: formattedPhone }),
+            body: JSON.stringify({ phoneNumber }),
         });
     }
 
@@ -139,15 +134,10 @@ class ApiService {
         deviceFingerprint?: string,
         fcmToken?: string
     ): Promise<ApiResponse<VerifyOTPResponse>> {
-        // Format phone number to include country code
-        const formattedPhone = phoneNumber.startsWith('+92')
-            ? phoneNumber
-            : `+92${phoneNumber}`;
-
         return this.request<VerifyOTPResponse>(API_ENDPOINTS.VERIFY_OTP, {
             method: 'POST',
             body: JSON.stringify({
-                phoneNumber: formattedPhone,
+                phoneNumber,
                 otp,
                 deviceFingerprint: deviceFingerprint || 'mobile-app',
                 fcmToken,
@@ -221,10 +211,50 @@ class ApiService {
      */
     async getTransactions(
         token: string,
-        page: number = 1,
-        limit: number = 20
+        params: {
+            limit?: number;
+            offset?: number;
+            status?: string;
+            type?: string;
+            startDate?: string;
+            endDate?: string;
+        } = {}
     ): Promise<ApiResponse> {
-        return this.request(`${API_ENDPOINTS.GET_TRANSACTIONS}?page=${page}&limit=${limit}`, {
+        const searchParams = new URLSearchParams();
+        if (params.limit) searchParams.append('limit', params.limit.toString());
+        if (params.offset) searchParams.append('offset', params.offset.toString());
+        if (params.status) searchParams.append('status', params.status);
+        if (params.type) searchParams.append('type', params.type);
+        if (params.startDate) searchParams.append('startDate', params.startDate);
+        if (params.endDate) searchParams.append('endDate', params.endDate);
+
+        const queryString = searchParams.toString();
+
+        return this.request(
+            `${API_ENDPOINTS.GET_TRANSACTIONS}${queryString ? `?${queryString}` : ''}`,
+            {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }
+        );
+    }
+
+    /**
+     * Get wallet transaction history
+     */
+    async getWalletHistory(
+        token: string,
+        limit: number = 50,
+        offset: number = 0
+    ): Promise<ApiResponse> {
+        const searchParams = new URLSearchParams({
+            limit: String(limit),
+            offset: String(offset),
+        });
+
+        return this.request(`${API_ENDPOINTS.WALLET_HISTORY}?${searchParams.toString()}`, {
             method: 'GET',
             headers: {
                 Authorization: `Bearer ${token}`,

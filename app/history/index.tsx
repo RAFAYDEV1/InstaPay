@@ -1,25 +1,62 @@
 import { ArrowDownLeft, ArrowUpRight, Phone, User, Wifi, Zap } from 'lucide-react-native';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import ApiService from '../../services/api.service';
+import SessionService from '../../services/session.service';
+
+type HistoryItem = {
+  id: string | number;
+  amount: number;
+  currency: string;
+  created_at: string;
+  transaction_type: string;
+  sender_id?: number;
+  receiver_id?: number;
+  sender_name?: string;
+  receiver_name?: string;
+};
 
 export default function History() {
-  const recentActivities = [
-    { id: '1', label: 'Sent to Ali', amount: -1000, date: '2025-05-24', type: 'sent', icon: 'user' },
-    { id: '2', label: 'Electricity Bill', amount: -2200, date: '2025-05-23', type: 'bill', icon: 'zap' },
-    { id: '3', label: 'Mobile Top-up', amount: -500, date: '2025-05-22', type: 'topup', icon: 'phone' },
-    { id: '4', label: 'Received from Ahmed', amount: 3000, date: '2025-05-21', type: 'received', icon: 'user' },
-    { id: '5', label: 'Sent to Hina', amount: -1500, date: '2025-05-20', type: 'sent', icon: 'user' },
-    { id: '6', label: 'Internet Bill', amount: -1800, date: '2025-05-19', type: 'bill', icon: 'wifi' },
-  ];
+  const [transactions, setTransactions] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<number | undefined>(undefined);
 
-  const getIcon = (iconType: string) => {
-    const iconProps = { size: 20, color: '#fff' };
-    switch (iconType) {
+  const loadHistory = async () => {
+    setLoading(true);
+    try {
+      const [token, storedUser] = await Promise.all([
+        SessionService.getAccessToken(),
+        SessionService.getUser(),
+      ]);
 
-      case 'zap': return <Zap {...iconProps} />;
-      case 'wifi': return <Wifi {...iconProps} />;
-      case 'phone': return <Phone {...iconProps} />;
-      default: return <User {...iconProps} />;
+      if (storedUser?.id) setUserId(storedUser.id);
+
+      if (!token) {
+        setTransactions([]);
+        return;
+      }
+
+      const response = await ApiService.getWalletHistory(token, 50, 0);
+      if (response.success && response.data?.transactions) {
+        setTransactions(response.data.transactions);
+      } else if (response.success && response.data?.history) {
+        setTransactions(response.data.history);
+      }
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  const getIcon = (item: HistoryItem) => {
+    const iconProps = { size: 20, color: '#fff' };
+    const type = item.transaction_type || '';
+    if (type.includes('bill')) return <Zap {...iconProps} />;
+    if (type.includes('top')) return <Phone {...iconProps} />;
+    return <User {...iconProps} />;
   };
 
   const formatDate = (dateStr: string) => {
@@ -34,7 +71,17 @@ export default function History() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const totalBalance = recentActivities.reduce((sum, item) => sum + item.amount, 0);
+  const totalBalance = useMemo(
+    () =>
+      transactions.reduce((sum, item) => {
+        const amount = Number(item.amount) || 0;
+        if (userId && item.sender_id === userId) {
+          return sum - amount;
+        }
+        return sum + amount;
+      }, 0),
+    [transactions, userId]
+  );
 
   return (
     <ScrollView style={styles.container}>
@@ -55,61 +102,75 @@ export default function History() {
         <View style={styles.summaryDivider} />
         <View style={styles.summaryStats}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{recentActivities.filter(a => a.amount < 0).length}</Text>
+            <Text style={styles.statValue}>{transactions.filter(a => userId && a.sender_id === userId).length}</Text>
             <Text style={styles.statLabel}>Outgoing</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{recentActivities.filter(a => a.amount > 0).length}</Text>
+            <Text style={styles.statValue}>{transactions.filter(a => !userId || a.sender_id !== userId).length}</Text>
             <Text style={styles.statLabel}>Incoming</Text>
           </View>
         </View>
       </View>
 
       {/* Transactions List */}
-      <Text style={styles.sectionTitle}>All Transactions</Text>
-
-      {recentActivities.map((item, index) => (
-        <TouchableOpacity
-          key={item.id}
-          style={[
-            styles.activityCard,
-            index === 0 && styles.firstCard
-          ]}
-          activeOpacity={0.7}
-        >
-          <View style={styles.cardContent}>
-            <View style={[
-              styles.iconContainer,
-              item.amount > 0 ? styles.iconReceived : styles.iconSent
-            ]}>
-              {getIcon(item.icon)}
-            </View>
-
-            <View style={styles.activityInfo}>
-              <Text style={styles.activityLabel}>{item.label}</Text>
-              <Text style={styles.activityDate}>{formatDate(item.date)}</Text>
-            </View>
-
-            <View style={styles.amountContainer}>
-              <Text style={[
-                styles.activityAmount,
-                item.amount > 0 ? styles.amountPositive : styles.amountNegative
-              ]}>
-                {item.amount > 0 ? '+' : ''}Rs {Math.abs(item.amount).toLocaleString()}
-              </Text>
-              {item.amount > 0 ? (
-                <ArrowDownLeft size={14} color="#10B981" style={styles.arrowIcon} />
-              ) : (
-                <ArrowUpRight size={14} color="#EF4444" style={styles.arrowIcon} />
-              )}
-            </View>
-          </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 24 }}>
+        <Text style={styles.sectionTitle}>All Transactions</Text>
+        <TouchableOpacity onPress={loadHistory}>
+          <Text style={{ color: '#4A90E2', fontWeight: '600' }}>Refresh</Text>
         </TouchableOpacity>
-      ))}
+      </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Showing last 6 transactions</Text>
+      {loading ? (
+        <ActivityIndicator style={{ marginTop: 16 }} />
+      ) : (
+        transactions.map((item, index) => {
+          const isOutgoing = userId && item.sender_id === userId;
+          const amount = Number(item.amount) || 0;
+          const label = isOutgoing ? item.receiver_name || 'Recipient' : item.sender_name || 'Sender';
+          return (
+            <TouchableOpacity
+              key={item.id}
+              style={[
+                styles.activityCard,
+                index === 0 && styles.firstCard
+              ]}
+              activeOpacity={0.7}
+            >
+              <View style={styles.cardContent}>
+                <View style={[
+                  styles.iconContainer,
+                  isOutgoing ? styles.iconSent : styles.iconReceived
+                ]}>
+                  {getIcon(item)}
+                </View>
+
+                <View style={styles.activityInfo}>
+                  <Text style={styles.activityLabel}>{label}</Text>
+                  <Text style={styles.activityDate}>{formatDate(item.created_at)}</Text>
+                </View>
+
+                <View style={styles.amountContainer}>
+                  <Text style={[
+                    styles.activityAmount,
+                    isOutgoing ? styles.amountNegative : styles.amountPositive
+                  ]}>
+                    {isOutgoing ? '-' : '+'}Rs {Math.abs(amount).toLocaleString()}
+                  </Text>
+                  {isOutgoing ? (
+                    <ArrowUpRight size={14} color="#EF4444" style={styles.arrowIcon} />
+                  ) : (
+                    <ArrowDownLeft size={14} color="#10B981" style={styles.arrowIcon} />
+                  )}
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        })
+      )}
+
+      <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+        <Text style={styles.footerText}>Showing {transactions.length} transactions</Text>
       </View>
     </ScrollView>
   );

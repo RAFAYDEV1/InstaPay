@@ -14,8 +14,7 @@ class AuthService {
     }
 
     /**
-     * Send OTP via Firebase (SMS)
-     * Note: You'll need to implement actual SMS sending via Firebase or third-party service
+     * Send OTP via SMS provider (Twilio). Falls back to console log if not configured.
      */
     async sendOTP(phoneNumber) {
         try {
@@ -30,9 +29,24 @@ class AuthService {
                 [phoneNumber, otp, expiresAt]
             );
 
-            // TODO: Implement actual SMS sending
-            // For now, we'll just log it (REMOVE IN PRODUCTION)
-            console.log(`📱 OTP for ${phoneNumber}: ${otp}`);
+            const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+            const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+            const twilioFrom = process.env.TWILIO_FROM_NUMBER;
+
+            // Normalize phone to E.164 if it is not already
+            const normalizedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+
+            if (twilioSid && twilioToken && twilioFrom) {
+                const client = require('twilio')(twilioSid, twilioToken);
+                await client.messages.create({
+                    body: `Your InstaPay OTP is ${otp}. It expires in ${expiryMinutes} minutes.`,
+                    from: twilioFrom,
+                    to: normalizedPhone,
+                });
+            } else {
+                console.warn('Twilio not configured. OTP logged for debugging only.');
+                console.log(`📱 OTP for ${phoneNumber}: ${otp}`);
+            }
 
             return {
                 success: true,
@@ -50,6 +64,8 @@ class AuthService {
      */
     async verifyOTP(phoneNumber, otp, deviceFingerprint) {
         try {
+            const auth = getAuth();
+
             // Check OTP validity
             const otpResult = await query(
                 `SELECT * FROM otp_verifications 
@@ -73,7 +89,6 @@ class AuthService {
             );
 
             // Create Firebase custom token
-            const auth = getAuth();
             const firebaseToken = await auth.createCustomToken(phoneNumber);
 
             // Check if user exists

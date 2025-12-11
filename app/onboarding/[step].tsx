@@ -14,6 +14,7 @@ import {
 
 const { width, height } = Dimensions.get('window');
 
+
 type StepParams = {
   step?: string | string[];
 };

@@ -2,7 +2,7 @@
 export const API_CONFIG = {
     // Change this to your computer's IP address when testing on physical device
     // Find your IP: Windows (ipconfig), Mac/Linux (ifconfig)
-    BASE_URL: 'http://localhost:3000/api',
+    BASE_URL: 'http://192.168.18.84:3000/api',
 
     // For physical device testing, use your computer's IP:
     // BASE_URL: 'http://192.168.x.x:3000/api',
@@ -26,8 +26,9 @@ export const API_ENDPOINTS = {
     DELETE_PROFILE_IMAGE: '/user/delete-profile-image',
 
     // Wallet
-    GET_WALLET: '/wallet',
     GET_BALANCE: '/wallet/balance',
+    WALLET_HISTORY: '/wallet/history',
+    BALANCE_HISTORY: '/wallet/balance-history',
 
     // Transactions
     GET_TRANSACTIONS: '/transactions',

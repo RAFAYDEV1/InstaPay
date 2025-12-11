@@ -1,5 +1,5 @@
 import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Clipboard,
@@ -10,13 +10,32 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import SessionService from '../../services/session.service';
 
 export default function InviteFriendsScreen() {
-  const [referralCode] = useState('INSTA2025XYZ'); // Mock referral code
-  const [totalInvites] = useState(12);
-  const [successfulInvites] = useState(8);
-  const [pendingInvites] = useState(4);
-  const [totalEarnings] = useState('2,400');
+  const [referralCode, setReferralCode] = useState<string>('');
+  const [totalInvites, setTotalInvites] = useState<number>(0);
+  const [successfulInvites, setSuccessfulInvites] = useState<number>(0);
+  const [pendingInvites, setPendingInvites] = useState<number>(0);
+  const [totalEarnings, setTotalEarnings] = useState<string>('0');
+
+  useEffect(() => {
+    const loadReferralData = async () => {
+      const user = await SessionService.getUser();
+      const generatedCode =
+        user?.phoneNumber?.replace('+', '').slice(-8) ||
+        (user?.id ? `INSTA-${user.id}` : 'INSTA');
+      setReferralCode(generatedCode);
+
+      // If backend adds referral stats, map them here. For now default to zeroed values.
+      setTotalInvites(0);
+      setSuccessfulInvites(0);
+      setPendingInvites(0);
+      setTotalEarnings('0');
+    };
+
+    loadReferralData();
+  }, []);
 
   const copyReferralCode = () => {
     Clipboard.setString(referralCode);

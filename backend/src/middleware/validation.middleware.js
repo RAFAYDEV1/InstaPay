@@ -50,6 +50,12 @@ const schemas = {
         fcmToken: Joi.string().optional(),
     }),
 
+    updateProfile: Joi.object({
+        fullName: Joi.string().min(2).max(100).optional(),
+        email: Joi.string().email().optional(),
+        profileImageUrl: Joi.string().uri().optional(),
+    }),
+
     // Wallet schemas
     topUp: Joi.object({
         amount: Joi.number().positive().precision(2).required(),

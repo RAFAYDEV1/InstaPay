@@ -1,7 +1,8 @@
 import { FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -9,6 +10,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import ApiService from '../../services/api.service';
+import SessionService from '../../services/session.service';
 
 interface AccountData {
   accountTitle: string;
@@ -24,18 +27,56 @@ interface AccountData {
 
 export default function AccountDetailsScreen() {
   const [showBalance, setShowBalance] = useState(false);
+  const [accountData, setAccountData] = useState<AccountData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const accountData: AccountData = {
-    accountTitle: "Abdur Rafay Ali",
-    accountNumber: "1234567890123456",
-    iban: "PK36INSTA1234567890123456",
-    bankName: "InstaPay Bank",
-    accountType: "Current Account",
-    balance: "13,250",
-    currency: "PKR",
-    status: "Active",
-    openingDate: "May 15, 2025"
+  const generateIban = (walletId?: number, phone?: string) => {
+    const bankCode = 'INSP'; // pseudo bank code for InstaPay
+    const country = 'PK';
+    const base = `${walletId || ''}${(phone || '').replace(/\D/g, '').slice(-10)}`;
+    const padded = base.padStart(16, '0').slice(0, 16);
+    return `${country}${'18'}${bankCode}${padded}`;
   };
+
+  useEffect(() => {
+    const loadAccount = async () => {
+      setLoading(true);
+      try {
+        const [token, storedUser] = await Promise.all([
+          SessionService.getAccessToken(),
+          SessionService.getUser(),
+        ]);
+
+        if (!token) {
+          setAccountData(null);
+          return;
+        }
+
+        const balanceRes = await ApiService.getWalletBalance(token);
+        if (balanceRes.success && balanceRes.data?.wallet) {
+          const wallet = balanceRes.data.wallet;
+          const computedIban = wallet.iban || generateIban(wallet.id, storedUser?.phoneNumber || wallet.phone_number);
+          setAccountData({
+            accountTitle: storedUser?.fullName || wallet.full_name || 'Account Holder',
+            accountNumber: wallet.id ? String(wallet.id).padStart(12, '0') : wallet.account_number || '—',
+            iban: computedIban,
+            bankName: 'InstaPay Wallet',
+            accountType: wallet.wallet_type || 'Personal',
+            balance: Number(wallet.balance || 0).toLocaleString(),
+            currency: wallet.currency || 'PKR',
+            status: wallet.status || 'Active',
+            openingDate: wallet.created_at
+              ? new Date(wallet.created_at).toDateString()
+              : '—',
+          });
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAccount();
+  }, []);
 
   const copyToClipboard = async (text: string, label: string) => {
     await Clipboard.setStringAsync(text);
@@ -56,31 +97,39 @@ export default function AccountDetailsScreen() {
 
       {/* Account Card */}
       <View style={styles.accountCard}>
-        <View style={styles.cardHeader}>
-          <View>
-            <Text style={styles.accountTitle}>{accountData.accountTitle}</Text>
-            <Text style={styles.bankName}>{accountData.bankName}</Text>
-          </View>
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>{accountData.status}</Text>
-          </View>
-        </View>
+        {loading ? (
+          <ActivityIndicator />
+        ) : accountData ? (
+          <>
+            <View style={styles.cardHeader}>
+              <View>
+                <Text style={styles.accountTitle}>{accountData.accountTitle}</Text>
+                <Text style={styles.bankName}>{accountData.bankName}</Text>
+              </View>
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusText}>{accountData.status}</Text>
+              </View>
+            </View>
 
-        <View style={styles.balanceSection}>
-          <Text style={styles.balanceLabel}>Current Balance</Text>
-          <View style={styles.balanceRow}>
-            <Text style={styles.balanceAmount}>
-              {showBalance ? `${accountData.currency} ${accountData.balance}` : '••••••••'}
-            </Text>
-            <TouchableOpacity onPress={toggleBalance} style={styles.eyeButton}>
-              <Ionicons 
-                name={showBalance ? "eye-off" : "eye"} 
-                size={20} 
-                color="#666" 
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
+            <View style={styles.balanceSection}>
+              <Text style={styles.balanceLabel}>Current Balance</Text>
+              <View style={styles.balanceRow}>
+                <Text style={styles.balanceAmount}>
+                  {showBalance ? `${accountData.currency} ${accountData.balance}` : '••••••••'}
+                </Text>
+                <TouchableOpacity onPress={toggleBalance} style={styles.eyeButton}>
+                  <Ionicons
+                    name={showBalance ? "eye-off" : "eye"}
+                    size={20}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </>
+        ) : (
+          <Text style={styles.bankName}>No account data available</Text>
+        )}
       </View>
 
       {/* Account Information */}
@@ -92,11 +141,11 @@ export default function AccountDetailsScreen() {
             <MaterialIcons name="account-balance" size={20} color="#666" />
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoLabel}>Account Number</Text>
-              <Text style={styles.infoValue}>{accountData.accountNumber}</Text>
+              <Text style={styles.infoValue}>{accountData?.accountNumber || '—'}</Text>
             </View>
           </View>
           <TouchableOpacity 
-            onPress={() => copyToClipboard(accountData.accountNumber, 'Account Number')}
+            onPress={() => accountData && copyToClipboard(accountData.accountNumber, 'Account Number')}
             style={styles.copyButton}
           >
             <MaterialIcons name="content-copy" size={18} color="#1E1E50" />
@@ -108,11 +157,11 @@ export default function AccountDetailsScreen() {
             <MaterialIcons name="account-balance-wallet" size={20} color="#666" />
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoLabel}>IBAN</Text>
-              <Text style={styles.infoValue}>{accountData.iban}</Text>
+              <Text style={styles.infoValue}>{accountData?.iban || '—'}</Text>
             </View>
           </View>
           <TouchableOpacity 
-            onPress={() => copyToClipboard(accountData.iban, 'IBAN')}
+            onPress={() => accountData && copyToClipboard(accountData.iban, 'IBAN')}
             style={styles.copyButton}
           >
             <MaterialIcons name="content-copy" size={18} color="#1E1E50" />
@@ -124,7 +173,7 @@ export default function AccountDetailsScreen() {
             <MaterialIcons name="category" size={20} color="#666" />
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoLabel}>Account Type</Text>
-              <Text style={styles.infoValue}>{accountData.accountType}</Text>
+              <Text style={styles.infoValue}>{accountData?.accountType || '—'}</Text>
             </View>
           </View>
         </View>
@@ -134,7 +183,7 @@ export default function AccountDetailsScreen() {
             <MaterialIcons name="date-range" size={20} color="#666" />
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoLabel}>Opening Date</Text>
-              <Text style={styles.infoValue}>{accountData.openingDate}</Text>
+              <Text style={styles.infoValue}>{accountData?.openingDate || '—'}</Text>
             </View>
           </View>
         </View>
