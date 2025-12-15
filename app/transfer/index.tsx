@@ -1,9 +1,11 @@
+import * as FileSystem from "expo-file-system/legacy";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -34,6 +36,42 @@ function PaymentSuccessScreen({
   const router = useRouter();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const handleDownloadReceipt = async () => {
+    const timestamp = new Date();
+    const receiptId = `TXN-${timestamp.getTime()}`;
+    const receiptDir = `${FileSystem.documentDirectory}receipts/`;
+    const receiptContent = [
+      "Transaction Receipt",
+      `Receipt ID: ${receiptId}`,
+      `Date: ${timestamp.toLocaleString()}`,
+      `Recipient: ${recipient}`,
+      `Amount: Rs ${amount}`,
+      "Status: Completed",
+    ].join("\n");
+
+    try {
+      // Ensure receipts directory exists
+      await FileSystem.makeDirectoryAsync(receiptDir, { intermediates: true });
+
+      const fileUri = `${receiptDir}${receiptId}.txt`;
+      await FileSystem.writeAsStringAsync(fileUri, receiptContent, {
+        encoding: 'utf8',
+      });
+
+      await Share.share({
+        title: "Transaction Receipt",
+        message: `Your receipt has been saved.\n\n${receiptContent}`,
+        url: fileUri,
+      });
+    } catch (error) {
+      console.error("Failed to generate receipt", error);
+      Alert.alert(
+        "Receipt Error",
+        "We could not generate the receipt. Please try again."
+      );
+    }
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -136,6 +174,7 @@ function PaymentSuccessScreen({
 
         <TouchableOpacity
           style={successStyles.secondaryButton}
+          onPress={handleDownloadReceipt}
           activeOpacity={0.7}
         >
           <Text style={successStyles.secondaryButtonText}>
@@ -197,6 +236,12 @@ export default function TransferScreen() {
       return;
     }
 
+    // Convert local 03XXXXXXXXX to E.164 +92 for the API
+    const apiRecipient =
+      recipient.startsWith("0") && recipient.length === 11
+        ? `+92${recipient.slice(1)}`
+        : recipient;
+
     setSubmitting(true);
     try {
       const token = await SessionService.getAccessToken();
@@ -206,7 +251,7 @@ export default function TransferScreen() {
       }
 
       const response = await ApiService.sendMoney(token, {
-        receiverPhone: recipient,
+        receiverPhone: apiRecipient,
         amount: numAmount,
         description: note,
       });
@@ -286,16 +331,24 @@ export default function TransferScreen() {
             >
               <TextInput
                 style={styles.input}
-                placeholder="e.g. +923001234567"
+                placeholder="e.g. 03001234567"
                 placeholderTextColor="#999"
                 value={recipient}
                 onChangeText={(text) => {
-                  const cleaned = text.replace(/[^0-9+]/g, '');
-                  setRecipient(cleaned);
+                  const digitsOnly = text.replace(/[^0-9]/g, "");
+                  let formatted = digitsOnly;
+
+                  if (formatted.startsWith("92") && formatted.length > 2) {
+                    formatted = `0${formatted.slice(2)}`;
+                  } else if (formatted && formatted[0] !== "0") {
+                    formatted = `0${formatted}`;
+                  }
+
+                  setRecipient(formatted.slice(0, 11));
                 }}
                 autoCapitalize="none"
                 keyboardType="phone-pad"
-                maxLength={16}
+                maxLength={11}
                 onFocus={() => setFocusedInput("recipient")}
                 onBlur={() => setFocusedInput(null)}
               />
