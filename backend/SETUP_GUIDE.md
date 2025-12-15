@@ -76,7 +76,34 @@ From the downloaded JSON file, extract these values for your `.env` file:
    - **anon public key**: For client-side (if needed)
    - **service_role key**: For server-side (backend)
 
-## Step 4: Configure Environment Variables
+## Step 4: Twilio Setup (for SMS OTP)
+
+### 4.1 Create Twilio Account
+
+1. Go to [Twilio](https://www.twilio.com/try-twilio)
+2. Sign up for a free trial account
+3. Verify your email and phone number
+
+### 4.2 Get Twilio Credentials
+
+1. Go to [Twilio Console](https://console.twilio.com/)
+2. From the dashboard, copy:
+   - **Account SID**
+   - **Auth Token**
+
+### 4.3 Get a Twilio Phone Number
+
+1. Go to Phone Numbers → Manage → Buy a number
+2. For trial accounts: You can get a free trial number
+3. Select a number with SMS capabilities
+4. Copy the phone number (it will be in E.164 format, e.g., `+1234567890`)
+
+**Note**: Trial accounts can only send SMS to verified phone numbers. To verify a number:
+1. Go to Phone Numbers → Manage → Verified Caller IDs
+2. Click "Add a new number"
+3. Enter your phone number and verify it
+
+## Step 5: Configure Environment Variables
 
 1. Copy `.env.example` to `.env`:
 
@@ -124,6 +151,11 @@ JWT_EXPIRES_IN=7d
 OTP_EXPIRY_MINUTES=5
 OTP_LENGTH=6
 
+# Twilio Configuration (for SMS OTP)
+TWILIO_ACCOUNT_SID=your-twilio-account-sid
+TWILIO_AUTH_TOKEN=your-twilio-auth-token
+TWILIO_FROM_NUMBER=+1234567890
+
 # Rate Limiting
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=100
@@ -133,7 +165,7 @@ APP_NAME=InstaPay
 DEFAULT_CURRENCY=PKR
 ```
 
-## Step 5: Run Database Migrations
+## Step 6: Run Database Migrations
 
 Run the migrations to create all necessary tables:
 
@@ -151,7 +183,7 @@ Running migration: 001_create_users_table.sql
 ✅ All migrations completed successfully!
 ```
 
-## Step 6: Start the Server
+## Step 7: Start the Server
 
 ### Development Mode (with auto-reload)
 
@@ -167,7 +199,7 @@ npm start
 
 The server will start on `http://localhost:3000`
 
-## Step 7: Test the API
+## Step 8: Test the API
 
 ### Health Check
 
@@ -234,8 +266,16 @@ SUPABASE_ANON_KEY=your-anon-key
 
 ### OTP Not Sending
 
-- Currently, OTPs are logged to console (development mode)
-- For production, integrate with SMS provider (Twilio, etc.)
+**If Twilio is not configured:**
+- OTPs will be logged to console with a warning message
+- Check console output for: `📱 OTP for +923001234567: 123456`
+
+**If Twilio is configured but SMS not received:**
+- Verify your Twilio credentials are correct
+- For trial accounts: Ensure the recipient phone number is verified in Twilio console
+- Check Twilio console logs for delivery status
+- Verify `TWILIO_FROM_NUMBER` is in E.164 format (e.g., `+1234567890`)
+- Ensure the phone number has SMS capabilities
 
 ### Port Already in Use
 
@@ -246,7 +286,7 @@ PORT=3001
 
 ## Next Steps
 
-1. **Implement SMS Provider**: Integrate Twilio or similar for actual OTP sending
+1. **Upgrade Twilio Account**: For production, upgrade from trial to send SMS to any number
 2. **Set up Payment Gateway**: If needed for top-ups
 3. **Deploy Backend**: Deploy to cloud provider (AWS, GCP, Heroku, etc.)
 4. **Configure Domain**: Set up custom domain and SSL

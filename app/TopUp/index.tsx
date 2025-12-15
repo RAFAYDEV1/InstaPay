@@ -12,6 +12,8 @@ import {
   View,
 } from "react-native";
 import { Circle, Path, Svg } from "react-native-svg";
+import ApiService from "../../services/api.service";
+import SessionService from "../../services/session.service";
 
 interface TopUpData {
   operator: string;
@@ -171,6 +173,7 @@ function TopUpSuccessScreen({
 
 // Main Top-Up Screen Component
 export default function TopUpScreen() {
+  const router = useRouter();
   const [operator, setOperator] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [amount, setAmount] = useState("");
@@ -181,6 +184,30 @@ export default function TopUpScreen() {
     mobileNumber: "",
     amount: "",
   });
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [showLowBalanceBanner, setShowLowBalanceBanner] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch wallet balance on component mount
+  useEffect(() => {
+    const fetchWalletBalance = async () => {
+      try {
+        const token = await SessionService.getAccessToken();
+        if (token) {
+          const response = await ApiService.getWalletBalance(token);
+          if (response.success && response.data?.wallet) {
+            setWalletBalance(Number(response.data.wallet.balance) || 0);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch wallet balance:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWalletBalance();
+  }, []);
 
   const handleTopUp = () => {
     if (!operator || !mobileNumber || !amount) {
@@ -197,6 +224,13 @@ export default function TopUpScreen() {
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
       Alert.alert("Error", "Please enter a valid amount.");
+      return;
+    }
+
+    // Check wallet balance
+    if (numAmount > walletBalance) {
+      setShowLowBalanceBanner(true);
+      setTimeout(() => setShowLowBalanceBanner(false), 5000);
       return;
     }
 
@@ -227,6 +261,19 @@ export default function TopUpScreen() {
             Recharge your mobile instantly
           </Text>
         </View>
+
+        {/* Low Balance Banner */}
+        {showLowBalanceBanner && (
+          <View style={styles.lowBalanceBanner}>
+            <Text style={styles.bannerIcon}>⚠️</Text>
+            <View style={styles.bannerTextContainer}>
+              <Text style={styles.bannerTitle}>Low on Balance</Text>
+              <Text style={styles.bannerText}>
+                Insufficient funds. Please top up your account to continue.
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Form Card */}
         <View style={styles.formCard}>
@@ -391,7 +438,7 @@ export default function TopUpScreen() {
           style={[
             styles.topUpButton,
             (!operator || !mobileNumber || !amount) &&
-              styles.topUpButtonDisabled,
+            styles.topUpButtonDisabled,
           ]}
           onPress={handleTopUp}
           activeOpacity={0.9}
@@ -640,6 +687,45 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 20,
     fontWeight: "bold",
+  },
+  lowBalanceBanner: {
+    backgroundColor: "#FEF2F2",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+  },
+  bannerIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  bannerTextContainer: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#991B1B",
+    marginBottom: 4,
+  },
+  bannerText: {
+    fontSize: 13,
+    color: "#B91C1C",
+    lineHeight: 18,
+  },
+  topUpLink: {
+    backgroundColor: "#DC2626",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  topUpLinkText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
   },
 });
 

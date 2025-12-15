@@ -1,18 +1,24 @@
 import { Entypo, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Animated,
-  Image,
+  FlatList,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
+import SessionService from '../../services/session.service';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const [qrValue, setQrValue] = useState<string>('');
+  const [userPhone, setUserPhone] = useState<string>('');
+  const [loading, setLoading] = useState(true);
 
   const profileCards = [
     {
@@ -20,29 +26,68 @@ export default function ProfileScreen() {
       icon: <Ionicons name="person" size={20} color="#fff" />,
       title: 'Personal Details',
       subtitle: 'Manage your profile information',
-      colors: ['#3b82f6', '#06b6d4'],
-      route: '/profile/personalDetails',
+      colors: ['#3b82f6', '#06b6d4'] as const,
+      route: '/profile/personalDetails' as const,
     },
     {
       id: 'account',
       icon: <FontAwesome5 name="university" size={18} color="#fff" />,
       title: 'InstaPay Account Details',
       subtitle: 'View account and payment info',
-      colors: ['#a855f7', '#ec4899'],
-      route: '/profile/AccountDetails',
+      colors: ['#a855f7', '#ec4899'] as const,
+      route: '/profile/AccountDetails' as const,
     },
     {
       id: 'invite',
       icon: <Entypo name="add-user" size={20} color="#fff" />,
       title: 'Invite Friend to InstaPay',
       subtitle: 'Share and earn rewards',
-      colors: ['#f97316', '#ef4444'],
-      route: '/profile/Invite',
+      colors: ['#f97316', '#ef4444'] as const,
+      route: '/profile/Invite' as const,
     },
-  ];
+  ] as const;
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        setLoading(true);
+        const stored = await SessionService.getUser();
+
+        if (stored) {
+          // Handle potential nested user object from previous bug
+          const user = (stored as any).user || stored;
+
+          if (user.phoneNumber) {
+            setUserPhone(user.phoneNumber);
+          }
+
+          // Generate unique QR code data for this user
+          const qrData = JSON.stringify({
+            type: 'instapay_payment',
+            userId: user.id,
+            phoneNumber: user.phoneNumber,
+            fullName: user.fullName,
+            timestamp: Date.now(),
+          });
+
+          setQrValue(qrData);
+        }
+      } catch (error) {
+        console.error('Failed to load user data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUser();
+  }, []);
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
@@ -51,7 +96,7 @@ export default function ProfileScreen() {
         </Text>
       </View>
 
-      {/* QR Code Section */}
+      {/* QR Section */}
       <View style={styles.qrSection}>
         <View style={styles.qrCard}>
           <LinearGradient
@@ -62,10 +107,22 @@ export default function ProfileScreen() {
           >
             <View style={styles.qrInnerBorder}>
               <View style={styles.qrImageContainer}>
-                <Image
-                  source={require('@/assets/images/qr.png')}
-                  style={styles.qrImage}
-                />
+                {loading ? (
+                  <View style={[styles.qrImage, styles.qrLoading]}>
+                    <Text style={styles.loadingText}>Generating...</Text>
+                  </View>
+                ) : qrValue ? (
+                  <QRCode
+                    value={qrValue}
+                    size={180}
+                    color="#1e293b"
+                    backgroundColor="#ffffff"
+                  />
+                ) : (
+                  <View style={[styles.qrImage, styles.qrError]}>
+                    <Text style={styles.errorText}>Failed to load QR</Text>
+                  </View>
+                )}
               </View>
             </View>
           </LinearGradient>
@@ -75,6 +132,7 @@ export default function ProfileScreen() {
               <Ionicons name="sparkles" size={16} color="#a855f7" />
               <Text style={styles.qrTitle}>Your Payment QR</Text>
             </View>
+
             <Text style={styles.qrSubtitle}>
               Share this code to receive payments instantly
             </Text>
@@ -86,7 +144,7 @@ export default function ProfileScreen() {
                 end={{ x: 1, y: 0 }}
                 style={styles.shareButtonGradient}
               >
-                <Ionicons name="share-social" size={16} color="#fff" />
+                <Ionicons name="share-social" size={16} color="#fff" style={styles.shareButtonIcon} />
                 <Text style={styles.shareButtonText}>Share QR Code</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -94,41 +152,40 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Profile Cards */}
-      <View style={styles.cardContainer}>
-        {profileCards.map((card) => (
+      {/* FlatList Cards */}
+      <FlatList
+        data={profileCards}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
           <ProfileCard
-            key={card.id}
-            icon={card.icon}
-            title={card.title}
-            subtitle={card.subtitle}
-            colors={card.colors}
-            onPress={() => router.push(card.route)}
+            icon={item.icon}
+            title={item.title}
+            subtitle={item.subtitle}
+            colors={item.colors}
+            onPress={() => router.push(item.route as any)}
           />
-        ))}
-      </View>
+        )}
+        scrollEnabled={false}
+        ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+      />
 
       {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>Need help? Visit our support center</Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
-function ProfileCard({
-  icon,
-  title,
-  subtitle,
-  colors,
-  onPress,
-}: {
+interface ProfileCardProps {
   icon: React.ReactNode;
   title: string;
   subtitle: string;
-  colors: string[];
+  colors: readonly string[];
   onPress?: () => void;
-}) {
+}
+
+function ProfileCard({ icon, title, subtitle, colors, onPress }: ProfileCardProps) {
   const [scaleValue] = useState(new Animated.Value(1));
 
   const handlePressIn = () => {
@@ -158,7 +215,7 @@ function ProfileCard({
         style={[styles.card, { transform: [{ scale: scaleValue }] }]}
       >
         <LinearGradient
-          colors={colors}
+          colors={colors as any}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.iconGradient}
@@ -177,6 +234,7 @@ function ProfileCard({
   );
 }
 
+/* Styles */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -205,10 +263,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 24,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
     elevation: 8,
   },
   qrGradientBorder: {
@@ -237,8 +291,8 @@ const styles = StyleSheet.create({
   qrTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
     marginBottom: 6,
+    gap: 6,
   },
   qrTitle: {
     fontSize: 18,
@@ -254,27 +308,22 @@ const styles = StyleSheet.create({
   shareButton: {
     borderRadius: 25,
     overflow: 'hidden',
-    shadowColor: '#8b5cf6',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
     elevation: 6,
   },
   shareButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 24,
+  },
+  shareButtonIcon: {
+    marginRight: 8,
   },
   shareButtonText: {
     color: '#fff',
     fontSize: 15,
     fontWeight: '600',
-  },
-  cardContainer: {
-    gap: 16,
   },
   card: {
     backgroundColor: '#fff',
@@ -282,13 +331,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 10,
     elevation: 5,
     borderWidth: 1,
     borderColor: '#f1f5f9',
+    marginBottom: 16,
   },
   iconGradient: {
     width: 48,
@@ -297,11 +343,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 4,
   },
   cardContent: {
     flex: 1,
@@ -317,12 +358,32 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   footer: {
-    marginTop: 24,
+    marginTop: 20,
     marginBottom: 20,
     alignItems: 'center',
   },
   footerText: {
     fontSize: 13,
     color: '#94a3b8',
+  },
+  qrLoading: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  qrError: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fee2e2',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#991b1b',
+    fontWeight: '500',
   },
 });

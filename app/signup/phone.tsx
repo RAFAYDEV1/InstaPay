@@ -1,4 +1,5 @@
 import { AntDesign } from '@expo/vector-icons';
+import * as Crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -27,6 +28,13 @@ export default function PhoneSignUp() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameChecking, setUsernameChecking] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [step, setStep] = useState<'form' | 'otp'>('form');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(60);
@@ -61,10 +69,32 @@ export default function PhoneSignUp() {
     }
   }, [step, timer]);
 
+  // Debounced username availability check
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (username && username.length >= 3) {
+      setUsernameChecking(true);
+      timeout = setTimeout(async () => {
+        const res = await ApiService.checkUsernameAvailability(username.trim());
+        if (res.success && res.data) {
+          setUsernameAvailable(res.data.available);
+        } else {
+          setUsernameAvailable(null);
+        }
+        setUsernameChecking(false);
+      }, 400);
+    } else {
+      setUsernameAvailable(null);
+      setUsernameChecking(false);
+    }
+
+    return () => clearTimeout(timeout);
+  }, [username]);
+
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      setBanner({ type: 'error', message: 'Permission is required to access the gallery.' });
+      setBanner({ type: 'error', message: 'Permission required to access gallery' });
       return;
     }
 
@@ -72,7 +102,7 @@ export default function PhoneSignUp() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.5,
+      quality: 0.7,
     });
 
     if (!result.canceled) {
@@ -80,19 +110,38 @@ export default function PhoneSignUp() {
     }
   };
 
+
+
   const formatPhone = () => {
     if (phoneNumber.startsWith('+')) return phoneNumber;
     return `+92${phoneNumber}`;
   };
 
   const handleSendOTP = async () => {
+    if (!imageUri) {
+      setBanner({ type: 'error', message: 'Please add a profile photo to continue' });
+      setError('Profile image is required');
+      return;
+    }
     try {
       setLoading(true);
       setError('');
 
+      // Send OTP - the backend should check if user exists
       const response = await ApiService.sendOTP(formatPhone());
 
       if (response.success) {
+        // Check if the response indicates user already exists
+        // This assumes the backend returns this information
+        if (response.data && (response.data as any).userExists) {
+          setBanner({
+            type: 'error',
+            message: 'User with this phone number already exists. Please login instead.'
+          });
+          setError('User already exists');
+          return;
+        }
+
         setBanner({ type: 'success', message: 'OTP sent successfully! Check your phone.' });
         fadeAnim.setValue(0);
         slideAnim.setValue(30);
@@ -131,6 +180,23 @@ export default function PhoneSignUp() {
 
       const { user, tokens, isNewUser } = response.data;
 
+      // Check if user already exists - prevent signup for existing users
+      if (!isNewUser) {
+        setBanner({
+          type: 'error',
+          message: 'User with this phone/email already exists. Please login instead.'
+        });
+        // Clear any tokens that might have been issued
+        if (tokens?.accessToken) {
+          await ApiService.logout(tokens.accessToken);
+        }
+        // Optionally redirect to login after a delay
+        setTimeout(() => {
+          router.replace('/login');
+        }, 2000);
+        return;
+      }
+
       if (tokens?.accessToken) {
         await SessionService.saveSession(
           {
@@ -142,6 +208,7 @@ export default function PhoneSignUp() {
             phoneNumber: user.phoneNumber,
             fullName,
             email,
+            username,
             profileImageUrl: user.profileImageUrl,
           }
         );
@@ -151,42 +218,81 @@ export default function PhoneSignUp() {
       }
 
       if (isNewUser && tokens.accessToken) {
+        // Hash the password before sending to backend
+        const hashedPassword = await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          password
+        );
+
         await ApiService.updateProfile(tokens.accessToken, {
           fullName,
           email,
+          username,
+          password: hashedPassword,
         });
 
-        if (imageUri) {
-          try {
-            await ApiService.uploadProfileImage(tokens.accessToken, imageUri);
+        // Refresh profile to get updated user data including username
+        const profileRes = await ApiService.getProfile(tokens.accessToken);
+        if (profileRes.success && profileRes.data) {
+          const userData = profileRes.data.user || profileRes.data;
 
-            // Refresh profile to get the uploaded image URL
-            const profileRes = await ApiService.getProfile(tokens.accessToken);
-            if (profileRes.success && profileRes.data) {
+          // Upload profile image if selected
+          if (imageUri) {
+            try {
+              const uploadRes = await ApiService.uploadProfileImage(tokens.accessToken, imageUri);
+
+              // Refresh profile again to get the uploaded image URL
+              if (uploadRes.success) {
+                const updatedProfileRes = await ApiService.getProfile(tokens.accessToken);
+                if (updatedProfileRes.success && updatedProfileRes.data) {
+                  const updatedUserData = updatedProfileRes.data.user || updatedProfileRes.data;
+                  await SessionService.saveSession(
+                    {
+                      accessToken: tokens.accessToken,
+                      firebaseToken: tokens.firebaseToken,
+                    },
+                    updatedUserData
+                  );
+                }
+              } else {
+                // Save session with username even if image upload failed
+                await SessionService.saveSession(
+                  {
+                    accessToken: tokens.accessToken,
+                    firebaseToken: tokens.firebaseToken,
+                  },
+                  userData
+                );
+              }
+            } catch (uploadErr) {
+              console.warn('Failed to upload profile image:', uploadErr);
+              // Save session with username even if image upload failed
               await SessionService.saveSession(
                 {
                   accessToken: tokens.accessToken,
                   firebaseToken: tokens.firebaseToken,
                 },
-                profileRes.data
+                userData
               );
             }
-          } catch (uploadErr) {
-            console.warn('Failed to upload profile image:', uploadErr);
-            // Non-blocking error, user can still proceed
+          } else {
+            // No profile image, save session with updated user data
+            await SessionService.saveSession(
+              {
+                accessToken: tokens.accessToken,
+                firebaseToken: tokens.firebaseToken,
+              },
+              userData
+            );
           }
         }
-      } else if (!isNewUser) {
-        // User already exists, show banner and redirect to login if needed, or just stop
-        setBanner({ type: 'error', message: 'User with this phone/email already exists. Please login.' });
-        // Optional: clear session or handle logout if the API automatically logged them in
+
         if (tokens?.accessToken) {
           await ApiService.logout(tokens.accessToken);
         }
-        return;
       }
 
-      setBanner({ type: 'success', message: `Welcome ${isNewUser ? '' : 'back'}!` });
+      setBanner({ type: 'success', message: `Welcome!` });
       router.replace('/(tabs)/home');
     } catch (err: any) {
       setError(err.message || 'Verification failed');
@@ -235,7 +341,16 @@ export default function PhoneSignUp() {
     }
   };
 
-  const isFormValid = phoneNumber.length >= 10 && fullName.length > 0 && email.length > 0;
+  const isFormValid =
+    !!imageUri &&
+    phoneNumber.length >= 10 &&
+    fullName.length > 0 &&
+    email.length > 0 &&
+    username.length >= 3 &&
+    usernameAvailable !== false &&
+    password.length >= 8 &&
+    confirmPassword.length >= 8 &&
+    password === confirmPassword;
   const isOtpComplete = otp.every(digit => digit !== '');
 
   return (
@@ -315,21 +430,28 @@ export default function PhoneSignUp() {
               }
             ]}
           >
+
             {/* Profile Picture Selection */}
-            <View style={styles.avatarContainer}>
-              <TouchableOpacity onPress={pickImage} style={styles.avatarButton}>
+            <View style={styles.profilePictureContainer}>
+              <Text style={styles.label}>Profile Picture (Required)</Text>
+              <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
                 {imageUri ? (
-                  <Image source={{ uri: imageUri }} style={styles.avatarImage} />
+                  <Image source={{ uri: imageUri }} style={styles.profileImage} />
                 ) : (
-                  <View style={styles.avatarPlaceholder}>
+                  <View style={styles.imagePlaceholder}>
                     <AntDesign name="camera" size={32} color="#4F46E5" />
-                    <Text style={styles.avatarText}>Add Photo</Text>
+                    <Text style={styles.imagePlaceholderText}>Add Photo</Text>
                   </View>
                 )}
-                <View style={styles.editIconContainer}>
-                  <AntDesign name="plus" size={16} color="#fff" />
+                <View style={styles.editBadge}>
+                  <AntDesign name="edit" size={14} color="#fff" />
                 </View>
               </TouchableOpacity>
+              {!imageUri && (
+                <Text style={[styles.helperText, { color: '#DC2626', marginTop: 8 }]}>
+                  Profile image is required to continue
+                </Text>
+              )}
             </View>
 
             {/* Full Name Input */}
@@ -339,7 +461,7 @@ export default function PhoneSignUp() {
                 <AntDesign name="user" size={20} color="#9CA3AF" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Muhammad Ahmed"
+                  placeholder="Abdur Rafay Ali"
                   placeholderTextColor="#9CA3AF"
                   value={fullName}
                   onChangeText={setFullName}
@@ -363,6 +485,88 @@ export default function PhoneSignUp() {
                   autoCapitalize="none"
                 />
               </View>
+            </View>
+
+            {/* Username Input */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Username</Text>
+              <View style={styles.inputWrapper}>
+                <AntDesign name="idcard" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Rafay123"
+                  placeholderTextColor="#9CA3AF"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                />
+                {usernameChecking && <ActivityIndicator size="small" color="#4F46E5" />}
+              </View>
+              <Text style={[
+                styles.helperText,
+                usernameAvailable === false && { color: '#DC2626' },
+                usernameAvailable === true && { color: '#16A34A' }
+              ]}>
+                {username.length < 3
+                  ? 'Username must be at least 3 characters'
+                  : usernameAvailable === false
+                    ? 'Username is taken'
+                    : usernameAvailable === true
+                      ? 'Username is available'
+                      : 'Checking username availability...'}
+              </Text>
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.inputWrapper}>
+                <AntDesign name="lock" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter password"
+                  placeholderTextColor="#9CA3AF"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <AntDesign
+                    name={showPassword ? "eye" : "eye-invisible"}
+                    size={20}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.helperText}>Minimum 8 characters</Text>
+            </View>
+
+            {/* Confirm Password Input */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Confirm Password</Text>
+              <View style={styles.inputWrapper}>
+                <AntDesign name="lock" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Re-enter password"
+                  placeholderTextColor="#9CA3AF"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                  <AntDesign
+                    name={showConfirmPassword ? "eye" : "eye-invisible"}
+                    size={20}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              </View>
+              {confirmPassword.length > 0 && password !== confirmPassword && (
+                <Text style={styles.errorText}>Passwords do not match</Text>
+              )}
             </View>
 
             {/* Phone Number Input */}
@@ -660,6 +864,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
     letterSpacing: 0.3,
+    padding: 5
   },
   otpContainer: {
     alignItems: 'center',
@@ -751,19 +956,22 @@ const styles = StyleSheet.create({
   bannerTextInfo: {
     color: '#1D4ED8',
   },
-  avatarContainer: {
+  profilePictureContainer: {
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 20,
   },
-  avatarButton: {
+  imagePickerButton: {
     position: 'relative',
+    marginTop: 8,
   },
-  avatarImage: {
+  profileImage: {
     width: 100,
     height: 100,
     borderRadius: 50,
+    borderWidth: 3,
+    borderColor: '#4F46E5',
   },
-  avatarPlaceholder: {
+  imagePlaceholder: {
     width: 100,
     height: 100,
     borderRadius: 50,
@@ -774,13 +982,13 @@ const styles = StyleSheet.create({
     borderColor: '#C7D2FE',
     borderStyle: 'dashed',
   },
-  avatarText: {
+  imagePlaceholderText: {
     fontSize: 12,
     color: '#4F46E5',
     fontWeight: '600',
     marginTop: 4,
   },
-  editIconContainer: {
+  editBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
@@ -792,5 +1000,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#fff',
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#DC2626',
+    marginTop: 8,
+    marginLeft: 4,
+    fontWeight: '500',
   },
 });

@@ -104,4 +104,31 @@ router.get(
     })
 );
 
+/**
+ * @route   POST /api/wallet/test-credit
+ * @desc    Credit test balance to the authenticated user's wallet (non-production only)
+ * @access  Private
+ */
+if (process.env.NODE_ENV !== 'production') {
+    router.post(
+        '/test-credit',
+        authenticateToken,
+        asyncHandler(async (req, res) => {
+            const { amount } = req.body || {};
+
+            // Default to 10,000 if no amount is provided
+            const creditAmount = parseFloat(amount) || 10000;
+
+            const result = await walletService.topUp(
+                req.user.userId,
+                creditAmount,
+                'test_credit',
+                { reason: 'test-balance', environment: process.env.NODE_ENV || 'development' }
+            );
+
+            res.status(200).json(result);
+        })
+    );
+}
+
 module.exports = router;

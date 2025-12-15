@@ -12,6 +12,8 @@ import {
   View
 } from 'react-native';
 import { Circle, Path, Svg } from 'react-native-svg';
+import ApiService from '../../services/api.service';
+import SessionService from '../../services/session.service';
 
 interface BillData {
   billType: string;
@@ -35,10 +37,10 @@ const billTypeConfig: { [key: string]: { color: string; icon: string; emoji: str
 };
 
 // Success Screen Component
-function BillPaymentSuccessScreen({ 
-  billType, 
-  consumerNumber, 
-  amount 
+function BillPaymentSuccessScreen({
+  billType,
+  consumerNumber,
+  amount
 }: BillPaymentSuccessScreenProps) {
   const router = useRouter();
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -84,7 +86,7 @@ function BillPaymentSuccessScreen({
           <Circle cx="70" cy="70" r="52" fill="rgba(34, 197, 94, 0.15)" />
           <Circle cx="70" cy="70" r="40" fill="rgba(34, 197, 94, 0.25)" />
           <Circle cx="70" cy="70" r="32" fill="#22C55E" />
-          
+
           <Path
             d="M52 70 L62 80 L88 54"
             stroke="white"
@@ -183,6 +185,7 @@ function BillPaymentSuccessScreen({
 
 // Main Utility Bills Screen Component
 export default function UtilityBillsScreen() {
+  const router = useRouter();
   const [billType, setBillType] = useState('');
   const [consumerNumber, setConsumerNumber] = useState('');
   const [amount, setAmount] = useState('');
@@ -193,6 +196,30 @@ export default function UtilityBillsScreen() {
     consumerNumber: '',
     amount: ''
   });
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [showLowBalanceBanner, setShowLowBalanceBanner] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch wallet balance on component mount
+  useEffect(() => {
+    const fetchWalletBalance = async () => {
+      try {
+        const token = await SessionService.getAccessToken();
+        if (token) {
+          const response = await ApiService.getWalletBalance(token);
+          if (response.success && response.data?.wallet) {
+            setWalletBalance(Number(response.data.wallet.balance) || 0);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch wallet balance:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWalletBalance();
+  }, []);
 
   const handlePayment = () => {
     if (!billType || !consumerNumber || !amount) {
@@ -203,6 +230,13 @@ export default function UtilityBillsScreen() {
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
       Alert.alert('Error', 'Please enter a valid amount.');
+      return;
+    }
+
+    // Check wallet balance
+    if (numAmount > walletBalance) {
+      setShowLowBalanceBanner(true);
+      setTimeout(() => setShowLowBalanceBanner(false), 5000);
       return;
     }
 
@@ -235,6 +269,19 @@ export default function UtilityBillsScreen() {
             Pay your bills instantly and conveniently
           </Text>
         </View>
+
+        {/* Low Balance Banner */}
+        {showLowBalanceBanner && (
+          <View style={styles.lowBalanceBanner}>
+            <Text style={styles.bannerIcon}>⚠️</Text>
+            <View style={styles.bannerTextContainer}>
+              <Text style={styles.bannerTitle}>Low on Balance</Text>
+              <Text style={styles.bannerText}>
+                Insufficient funds. Please top up your account to continue.
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Form Card */}
         <View style={styles.formCard}>
@@ -324,8 +371,13 @@ export default function UtilityBillsScreen() {
                     placeholder="Enter your account number"
                     placeholderTextColor="#999"
                     value={consumerNumber}
-                    onChangeText={setConsumerNumber}
-                    keyboardType="number-pad"
+                    onChangeText={(text) => {
+                      // Allow alphanumeric characters
+                      const cleaned = text.replace(/[^a-zA-Z0-9]/g, '');
+                      setConsumerNumber(cleaned.toUpperCase());
+                    }}
+                    autoCapitalize="characters"
+                    maxLength={13}
                     onFocus={() => setFocusedInput('consumer')}
                     onBlur={() => setFocusedInput(null)}
                   />
@@ -659,6 +711,45 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  lowBalanceBanner: {
+    backgroundColor: "#FEF2F2",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+  },
+  bannerIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  bannerTextContainer: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#991B1B",
+    marginBottom: 4,
+  },
+  bannerText: {
+    fontSize: 13,
+    color: "#B91C1C",
+    lineHeight: 18,
+  },
+  topUpLink: {
+    backgroundColor: "#DC2626",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  topUpLinkText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
   },
 });
 

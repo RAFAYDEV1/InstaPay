@@ -5,6 +5,7 @@ const FIREBASE_TOKEN_KEY = 'instapay_firebase_token';
 const USER_KEY = 'instapay_user';
 
 export interface StoredUser {
+    username?: string;
     id?: number;
     phoneNumber?: string;
     fullName?: string;

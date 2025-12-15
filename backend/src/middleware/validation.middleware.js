@@ -53,7 +53,16 @@ const schemas = {
     updateProfile: Joi.object({
         fullName: Joi.string().min(2).max(100).optional(),
         email: Joi.string().email().optional(),
+        username: Joi.string().alphanum().min(3).max(30).optional(),
+        // Password arrives pre-hashed with SHA-256 from the client
+        password: Joi.string().length(64).hex().optional(),
         profileImageUrl: Joi.string().uri().optional(),
+    }),
+
+    changePassword: Joi.object({
+        // Passwords are SHA-256 hashes from client
+        oldPassword: Joi.string().length(64).hex().required(),
+        newPassword: Joi.string().length(64).hex().required(),
     }),
 
     // Wallet schemas
@@ -67,10 +76,13 @@ const schemas = {
 
     // Transaction schemas
     transfer: Joi.object({
-        receiverId: Joi.string().uuid().required(),
+        receiverId: Joi.string().uuid().optional(),
+        receiverPhone: Joi.string()
+            .pattern(/^\+?[1-9]\d{1,14}$/)
+            .optional(),
         amount: Joi.number().positive().precision(2).required(),
         description: Joi.string().max(500).optional(),
-    }),
+    }).xor('receiverId', 'receiverPhone'),
 
     createTransaction: Joi.object({
         receiverId: Joi.string().uuid().optional(),

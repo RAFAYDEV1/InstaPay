@@ -11,6 +11,8 @@ import {
   View,
 } from "react-native";
 import { Circle, Path, Svg } from "react-native-svg";
+import ApiService from "../../services/api.service";
+import SessionService from "../../services/session.service";
 
 
 interface TransferData {
@@ -157,10 +159,35 @@ export default function TransferScreen() {
     amount: "",
     note: "",
   });
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [showLowBalanceBanner, setShowLowBalanceBanner] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleTransfer = () => {
+  // Fetch wallet balance on component mount
+  useEffect(() => {
+    const fetchWalletBalance = async () => {
+      try {
+        const token = await SessionService.getAccessToken();
+        if (token) {
+          const response = await ApiService.getWalletBalance(token);
+          if (response.success && response.data?.wallet) {
+            setWalletBalance(Number(response.data.wallet.balance) || 0);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch wallet balance:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWalletBalance();
+  }, []);
+
+  const handleTransfer = async () => {
     if (!recipient || !amount) {
-      Alert.alert("Error", "Please enter recipient and amount.");
+      Alert.alert("Error", "Please enter recipient phone and amount.");
       return;
     }
 
@@ -170,9 +197,42 @@ export default function TransferScreen() {
       return;
     }
 
-    // Store transfer data and show success screen
-    setTransferData({ recipient, amount, note });
-    setShowSuccess(true);
+    setSubmitting(true);
+    try {
+      const token = await SessionService.getAccessToken();
+      if (!token) {
+        Alert.alert("Error", "You must be logged in to send money.");
+        return;
+      }
+
+      const response = await ApiService.sendMoney(token, {
+        receiverPhone: recipient,
+        amount: numAmount,
+        description: note,
+      });
+
+      if (!response.success) {
+        Alert.alert("Transfer Failed", response.error || "Could not process transfer.");
+        return;
+      }
+
+      const senderNewBalance = response.data?.senderNewBalance;
+      if (senderNewBalance !== undefined) {
+        setWalletBalance(Number(senderNewBalance) || 0);
+      }
+
+      setTransferData({ recipient, amount, note });
+      setShowSuccess(true);
+    } catch (error: any) {
+      const message = error?.message || "Could not process transfer.";
+      if (message.toLowerCase().includes("insufficient")) {
+        setShowLowBalanceBanner(true);
+        setTimeout(() => setShowLowBalanceBanner(false), 5000);
+      }
+      Alert.alert("Transfer Failed", message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Show success screen if transfer was successful
@@ -197,13 +257,26 @@ export default function TransferScreen() {
           </Text>
         </View>
 
+        {/* Low Balance Banner */}
+        {showLowBalanceBanner && (
+          <View style={styles.lowBalanceBanner}>
+            <Text style={styles.bannerIcon}>⚠️</Text>
+            <View style={styles.bannerTextContainer}>
+              <Text style={styles.bannerTitle}>Low on Balance</Text>
+              <Text style={styles.bannerText}>
+                Insufficient funds. Please top up your account to continue.
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Form Card */}
         <View style={styles.formCard}>
           {/* Recipient Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>
               <Text style={styles.labelIcon}>👤 </Text>
-              Recipient Account/Number
+              Recipient Phone Number
             </Text>
             <View
               style={[
@@ -213,11 +286,16 @@ export default function TransferScreen() {
             >
               <TextInput
                 style={styles.input}
-                placeholder="Enter account number"
+                placeholder="e.g. +923001234567"
                 placeholderTextColor="#999"
                 value={recipient}
-                onChangeText={setRecipient}
-                keyboardType="number-pad"
+                onChangeText={(text) => {
+                  const cleaned = text.replace(/[^0-9+]/g, '');
+                  setRecipient(cleaned);
+                }}
+                autoCapitalize="none"
+                keyboardType="phone-pad"
+                maxLength={16}
                 onFocus={() => setFocusedInput("recipient")}
                 onBlur={() => setFocusedInput(null)}
               />
@@ -306,8 +384,11 @@ export default function TransferScreen() {
           style={styles.sendButton}
           onPress={handleTransfer}
           activeOpacity={0.9}
+          disabled={submitting}
         >
-          <Text style={styles.sendButtonText}>Send Money</Text>
+          <Text style={styles.sendButtonText}>
+            {submitting ? "Processing..." : "Send Money"}
+          </Text>
           <Text style={styles.sendButtonIcon}>→</Text>
         </TouchableOpacity>
       </View>
@@ -465,6 +546,45 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 20,
     fontWeight: "bold",
+  },
+  lowBalanceBanner: {
+    backgroundColor: "#FEF2F2",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+  },
+  bannerIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  bannerTextContainer: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#991B1B",
+    marginBottom: 4,
+  },
+  bannerText: {
+    fontSize: 13,
+    color: "#B91C1C",
+    lineHeight: 18,
+  },
+  topUpLink: {
+    backgroundColor: "#DC2626",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  topUpLinkText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
   },
 });
 

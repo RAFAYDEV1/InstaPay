@@ -40,6 +40,27 @@ export interface VerifyOTPResponse {
     };
 }
 
+export interface LoginRequest {
+    username: string;
+    password: string;
+}
+
+export interface LoginResponse {
+    success: boolean;
+    user: {
+        id: number;
+        phoneNumber: string;
+        fullName?: string;
+        email?: string;
+        username?: string;
+        profileImageUrl?: string;
+    };
+    tokens: {
+        accessToken: string;
+        firebaseToken: string;
+    };
+}
+
 class ApiService {
     private baseURL: string;
     private timeout: number;
@@ -146,11 +167,27 @@ class ApiService {
     }
 
     /**
+     * Login with username and password
+     */
+    async login(
+        username: string,
+        password: string
+    ): Promise<ApiResponse<LoginResponse>> {
+        return this.request<LoginResponse>(API_ENDPOINTS.LOGIN, {
+            method: 'POST',
+            body: JSON.stringify({
+                username,
+                password,
+            }),
+        });
+    }
+
+    /**
      * Update user profile
      */
     async updateProfile(
         token: string,
-        data: { fullName?: string; email?: string }
+        data: { fullName?: string; email?: string; username?: string; password?: string }
     ): Promise<ApiResponse> {
         return this.request(API_ENDPOINTS.UPDATE_PROFILE, {
             method: 'PUT',
@@ -158,6 +195,23 @@ class ApiService {
                 Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Change password (client sends hashed passwords)
+     */
+    async changePassword(
+        token: string,
+        oldPassword: string,
+        newPassword: string
+    ): Promise<ApiResponse> {
+        return this.request(API_ENDPOINTS.CHANGE_PASSWORD, {
+            method: 'PUT',
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ oldPassword, newPassword }),
         });
     }
 
@@ -170,6 +224,16 @@ class ApiService {
             headers: {
                 Authorization: `Bearer ${token}`,
             },
+        });
+    }
+
+    /**
+     * Check username availability
+     */
+    async checkUsernameAvailability(username: string): Promise<ApiResponse<{ available: boolean }>> {
+        const search = new URLSearchParams({ username });
+        return this.request(API_ENDPOINTS.CHECK_USERNAME + `?${search.toString()}`, {
+            method: 'GET',
         });
     }
 
@@ -268,7 +332,8 @@ class ApiService {
     async sendMoney(
         token: string,
         data: {
-            recipientPhone: string;
+            receiverPhone?: string;
+            receiverId?: string;
             amount: number;
             description?: string;
         }

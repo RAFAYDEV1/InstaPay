@@ -49,6 +49,30 @@ router.post(
 );
 
 /**
+ * @route   POST /api/auth/login
+ * @desc    Login with username and password
+ * @access  Public
+ */
+router.post(
+    '/login',
+    authLimiter,
+    asyncHandler(async (req, res) => {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username and password are required',
+            });
+        }
+
+        const result = await authService.login(username, password);
+
+        res.status(200).json(result);
+    })
+);
+
+/**
  * @route   POST /api/auth/refresh-token
  * @desc    Refresh authentication token
  * @access  Private

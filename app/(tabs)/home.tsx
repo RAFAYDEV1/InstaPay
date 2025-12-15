@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import ApiService from "../../services/api.service";
-import SessionService from "../../services/session.service";
+import SessionService, { StoredUser } from "../../services/session.service";
 import { useImage } from "../context/ImageContext";
 
 type Transaction = {
@@ -32,7 +32,7 @@ type Transaction = {
 
 export default function HomeScreen() {
   const screenWidth = Dimensions.get("window").width;
-  const { imageUri } = useImage();
+  const { imageUri, setImageUri } = useImage();
   const router = useRouter();
 
   const [wallet, setWallet] = useState<any>(null);
@@ -76,8 +76,23 @@ export default function HomeScreen() {
         SessionService.getUser(),
       ]);
 
-      if (storedUser?.fullName) setUserName(storedUser.fullName);
-      if (storedUser?.id) setUserId(storedUser.id);
+      let userData = storedUser;
+
+      if (token) {
+        const profileRes = await ApiService.getProfile(token);
+        if (profileRes.success && profileRes.data?.user) {
+          userData = profileRes.data.user;
+          await SessionService.saveSession({ accessToken: token }, userData as StoredUser);
+        }
+      }
+
+      if (userData?.fullName) setUserName(userData.fullName);
+      if (userData?.id) setUserId(userData.id);
+
+      // Load profile image from session / API
+      if (userData?.profileImageUrl) {
+        setImageUri(userData.profileImageUrl);
+      }
 
       if (!token) {
         setTransactions([]);
@@ -100,7 +115,7 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setImageUri]);
 
   useEffect(() => {
     loadData();

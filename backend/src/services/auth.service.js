@@ -29,24 +29,24 @@ class AuthService {
                 [phoneNumber, otp, expiresAt]
             );
 
-            const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-            const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-            const twilioFrom = process.env.TWILIO_FROM_NUMBER;
+            // const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+            // const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+            // const twilioFrom = process.env.TWILIO_FROM_NUMBER;
 
-            // Normalize phone to E.164 if it is not already
-            const normalizedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+            // // Normalize phone to E.164 if it is not already
+            // const normalizedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
 
-            if (twilioSid && twilioToken && twilioFrom) {
-                const client = require('twilio')(twilioSid, twilioToken);
-                await client.messages.create({
-                    body: `Your InstaPay OTP is ${otp}. It expires in ${expiryMinutes} minutes.`,
-                    from: twilioFrom,
-                    to: normalizedPhone,
-                });
-            } else {
-                console.warn('Twilio not configured. OTP logged for debugging only.');
-                console.log(`📱 OTP for ${phoneNumber}: ${otp}`);
-            }
+            // if (twilioSid && twilioToken && twilioFrom) {
+            //     const client = require('twilio')(twilioSid, twilioToken);
+            //     await client.messages.create({
+            //         body: `Your InstaPay OTP is ${otp}. It expires in ${expiryMinutes} minutes.`,
+            //         from: twilioFrom,
+            //         to: normalizedPhone,
+            //     });
+            // } else {
+            console.warn('Twilio disabled/not configured. OTP logged for debugging.');
+            console.log(`📱 OTP for ${phoneNumber}: ${otp}`);
+            // }
 
             return {
                 success: true,
@@ -56,6 +56,77 @@ class AuthService {
         } catch (error) {
             console.error('Error sending OTP:', error);
             throw new Error('Failed to send OTP');
+        }
+    }
+
+    /**
+     * Login with username and password
+     */
+    async login(username, password) {
+        try {
+            const auth = getAuth();
+
+            // Find user by username
+            const userResult = await query(
+                `SELECT * FROM users WHERE username = $1 AND is_active = true`,
+                [username]
+            );
+
+            if (userResult.rows.length === 0) {
+                return {
+                    success: false,
+                    message: 'Invalid username or password',
+                };
+            }
+
+            const user = userResult.rows[0];
+
+            // Verify password (password should be hashed with SHA-256 from client)
+            if (user.password !== password) {
+                return {
+                    success: false,
+                    message: 'Invalid username or password',
+                };
+            }
+
+            // Update last login
+            await query(
+                `UPDATE users SET last_login_at = NOW() WHERE id = $1`,
+                [user.id]
+            );
+
+            // Create Firebase custom token
+            const firebaseToken = await auth.createCustomToken(user.phone_number);
+
+            // Generate JWT token
+            const jwtToken = jwt.sign(
+                {
+                    userId: user.id,
+                    firebaseUid: user.firebase_uid,
+                    phoneNumber: user.phone_number,
+                },
+                process.env.JWT_SECRET,
+                { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+            );
+
+            return {
+                success: true,
+                user: {
+                    id: user.id,
+                    phoneNumber: user.phone_number,
+                    fullName: user.full_name,
+                    email: user.email,
+                    username: user.username,
+                    profileImageUrl: user.profile_image_url,
+                },
+                tokens: {
+                    accessToken: jwtToken,
+                    firebaseToken,
+                },
+            };
+        } catch (error) {
+            console.error('Error logging in:', error);
+            throw new Error('Failed to login');
         }
     }
 
@@ -116,11 +187,14 @@ class AuthService {
                 }
 
                 // Create user in database
+                // Generate temporary username from phone number (user can change it later)
+                const tempUsername = `user_${phoneNumber.replace(/[^0-9]/g, '')}`;
+
                 const newUserResult = await query(
-                    `INSERT INTO users (firebase_uid, phone_number, device_fingerprint, is_verified, last_login_at)
-           VALUES ($1, $2, $3, true, NOW())
-           RETURNING *`,
-                    [firebaseUser.uid, phoneNumber, deviceFingerprint]
+                    `INSERT INTO users (firebase_uid, phone_number, username, device_fingerprint, is_verified, last_login_at)
+               VALUES ($1, $2, $3, $4, true, NOW())
+               RETURNING *`,
+                    [firebaseUser.uid, phoneNumber, tempUsername, deviceFingerprint]
                 );
 
                 user = newUserResult.rows[0];
@@ -128,7 +202,7 @@ class AuthService {
                 // Create default wallet for new user
                 await query(
                     `INSERT INTO wallets (user_id, balance, currency, is_primary)
-           VALUES ($1, 0.00, $2, true)`,
+               VALUES ($1, 0.00, $2, true)`,
                     [user.id, process.env.DEFAULT_CURRENCY || 'PKR']
                 );
             } else {
@@ -136,8 +210,8 @@ class AuthService {
                 user = userResult.rows[0];
                 await query(
                     `UPDATE users 
-           SET device_fingerprint = $1, last_login_at = NOW(), is_verified = true
-           WHERE id = $2`,
+               SET device_fingerprint = $1, last_login_at = NOW(), is_verified = true
+               WHERE id = $2`,
                     [deviceFingerprint, user.id]
                 );
             }
@@ -170,7 +244,13 @@ class AuthService {
             };
         } catch (error) {
             console.error('Error verifying OTP:', error);
-            throw new Error('Failed to verify OTP');
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack,
+                phoneNumber,
+                otp
+            });
+            throw error; // Throw the original error instead of generic message
         }
     }
 

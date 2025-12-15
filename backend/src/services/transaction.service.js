@@ -59,7 +59,7 @@ class TransactionService {
     /**
      * Process a wallet-to-wallet transfer
      */
-    async processTransfer(senderId, receiverId, amount, description = null) {
+    async processTransfer(senderId, receiver, amount, description = null) {
         const client = await getClient();
 
         try {
@@ -78,6 +78,28 @@ class TransactionService {
             const senderWallet = senderWalletResult.rows[0];
 
             // Get receiver's wallet
+            let receiverId = receiver?.receiverId;
+            if (!receiverId && receiver?.receiverPhone) {
+                const lookupResult = await client.query(
+                    `SELECT w.* 
+                     FROM users u 
+                     JOIN wallets w ON u.id = w.user_id 
+                     WHERE u.phone_number = $1 AND w.is_primary = true AND w.status = 'active' 
+                     LIMIT 1 FOR UPDATE`,
+                    [receiver.receiverPhone]
+                );
+
+                if (lookupResult.rows.length === 0) {
+                    throw new Error('Receiver wallet not found for phone');
+                }
+
+                receiverId = lookupResult.rows[0].user_id;
+            }
+
+            if (!receiverId) {
+                throw new Error('Receiver not specified');
+            }
+
             const receiverWalletResult = await client.query(
                 `SELECT * FROM wallets WHERE user_id = $1 AND is_primary = true AND status = 'active' FOR UPDATE`,
                 [receiverId]

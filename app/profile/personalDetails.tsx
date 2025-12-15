@@ -1,8 +1,9 @@
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import QRCode from 'qrcode';
 import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { router } from 'expo-router';
+import ApiService from '../../services/api.service';
 import SessionService from '../../services/session.service';
 import { useImage } from '../context/ImageContext'; // adjust path
 
@@ -16,33 +17,35 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     const loadUser = async () => {
-      const stored = await SessionService.getUser();
+      const token = await SessionService.getAccessToken();
+      let stored = await SessionService.getUser();
+
+      // Always refresh from API when token available to avoid stale/incomplete data
+      if (token) {
+        const profileRes = await ApiService.getProfile(token);
+        if (profileRes.success && profileRes.data?.user) {
+          stored = profileRes.data.user;
+          if (stored) {
+            await SessionService.saveSession({ accessToken: token }, stored);
+          }
+        }
+      }
+
+      // Fix for potential nested user object from previous bug
+      if (stored && (stored as any).user) {
+        stored = (stored as any).user;
+      }
+
       if (stored?.fullName) setFullName(stored.fullName);
       if (stored?.phoneNumber) {
         setPhone(stored.phoneNumber);
-        setUsername(stored.phoneNumber.replace('+', '').slice(-8));
-        generateQr(stored);
+        setUsername(stored.username || stored.phoneNumber.replace('+', '').slice(-8));
       }
       if (stored?.email) setEmail(stored.email);
       if (stored?.profileImageUrl) setImageUri(stored.profileImageUrl);
     };
     loadUser();
   }, []);
-
-  const generateQr = async (user: any) => {
-    try {
-      const payload = JSON.stringify({
-        type: 'instapay_user',
-        id: user.id,
-        phone: user.phoneNumber,
-        name: user.fullName,
-      });
-      const uri = await QRCode.toDataURL(payload);
-      setQrUri(uri);
-    } catch (err) {
-      console.warn('QR generation failed', err);
-    }
-  };
 
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -118,20 +121,6 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* QR Code */}
-      <View style={styles.qrCard}>
-        <Text style={styles.qrTitle}>Your InstaPay QR</Text>
-        <Text style={styles.qrSubtitle}>Scan to pay or request money</Text>
-        {qrUri ? (
-          <Image source={{ uri: qrUri }} style={styles.qrImage} />
-        ) : (
-          <View style={styles.qrPlaceholder}>
-            <Text style={styles.qrPlaceholderText}>Generating...</Text>
-          </View>
-        )}
-        <Text style={styles.qrHint}>{phone}</Text>
-      </View>
-
       {/* Note Section */}
       <View style={styles.noteContainer}>
         <View style={styles.noteIcon}>
@@ -144,7 +133,7 @@ export default function ProfileScreen() {
 
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.secondaryButton}>
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/profile/changePassword')}>
           <Text style={styles.secondaryButtonText}>Change Password</Text>
         </TouchableOpacity>
       </View>

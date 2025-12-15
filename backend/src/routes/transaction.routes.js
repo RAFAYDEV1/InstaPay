@@ -17,11 +17,11 @@ router.post(
     transactionLimiter,
     validate(schemas.transfer),
     asyncHandler(async (req, res) => {
-        const { receiverId, amount, description } = req.body;
+        const { receiverId, receiverPhone, amount, description } = req.body;
 
         const result = await transactionService.processTransfer(
             req.user.userId,
-            receiverId,
+            { receiverId, receiverPhone },
             amount,
             description
         );
