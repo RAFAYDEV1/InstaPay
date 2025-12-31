@@ -1,4 +1,3 @@
-import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -27,13 +26,51 @@ interface BillPaymentSuccessScreenProps {
   amount: string;
 }
 
-// Bill type colors and icons
-const billTypeConfig: { [key: string]: { color: string; icon: string; emoji: string } } = {
-  Electricity: { color: '#F59E0B', icon: '⚡', emoji: '💡' },
-  Gas: { color: '#EF4444', icon: '🔥', emoji: '🔥' },
-  Water: { color: '#3B82F6', icon: '💧', emoji: '💧' },
-  Internet: { color: '#8B5CF6', icon: '📡', emoji: '🌐' },
-  PTCL: { color: '#10B981', icon: '📞', emoji: '☎️' },
+// Enhanced bill type configuration with gradients
+const billTypeConfig: {
+  [key: string]: {
+    color: string;
+    icon: string;
+    emoji: string;
+    gradient: string[];
+    lightBg: string;
+  }
+} = {
+  Electricity: {
+    color: '#F59E0B',
+    icon: '⚡',
+    emoji: '💡',
+    gradient: ['#FCD34D', '#F59E0B'],
+    lightBg: '#FEF3C7',
+  },
+  Gas: {
+    color: '#EF4444',
+    icon: '🔥',
+    emoji: '🔥',
+    gradient: ['#FCA5A5', '#EF4444'],
+    lightBg: '#FEE2E2',
+  },
+  Water: {
+    color: '#3B82F6',
+    icon: '💧',
+    emoji: '💧',
+    gradient: ['#93C5FD', '#3B82F6'],
+    lightBg: '#DBEAFE',
+  },
+  Internet: {
+    color: '#8B5CF6',
+    icon: '📡',
+    emoji: '🌐',
+    gradient: ['#C4B5FD', '#8B5CF6'],
+    lightBg: '#EDE9FE',
+  },
+  PTCL: {
+    color: '#10B981',
+    icon: '📞',
+    emoji: '☎️',
+    gradient: ['#6EE7B7', '#10B981'],
+    lightBg: '#D1FAE5',
+  },
 };
 
 // Success Screen Component
@@ -46,6 +83,7 @@ function BillPaymentSuccessScreen({
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -66,120 +104,145 @@ function BillPaymentSuccessScreen({
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Pulse animation for success icon
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
   }, []);
 
   const billConfig = billTypeConfig[billType] || billTypeConfig.Electricity;
 
   return (
-    <View style={successStyles.container}>
-      {/* Success Icon with Animation */}
-      <Animated.View
-        style={[
-          successStyles.iconContainer,
-          {
-            transform: [{ scale: scaleAnim }],
-          },
-        ]}
-      >
-        <Svg width={140} height={140} viewBox="0 0 140 140">
-          <Circle cx="70" cy="70" r="65" fill="rgba(34, 197, 94, 0.08)" />
-          <Circle cx="70" cy="70" r="52" fill="rgba(34, 197, 94, 0.15)" />
-          <Circle cx="70" cy="70" r="40" fill="rgba(34, 197, 94, 0.25)" />
-          <Circle cx="70" cy="70" r="32" fill="#22C55E" />
+    <ScrollView style={successStyles.scrollView}>
+      <View style={successStyles.container}>
+        {/* Success Icon with Enhanced Animation */}
+        <Animated.View
+          style={[
+            successStyles.iconContainer,
+            {
+              transform: [{ scale: Animated.multiply(scaleAnim, pulseAnim) }],
+            },
+          ]}
+        >
+          <Svg width={160} height={160} viewBox="0 0 160 160">
+            <Circle cx="80" cy="80" r="75" fill="rgba(34, 197, 94, 0.05)" />
+            <Circle cx="80" cy="80" r="62" fill="rgba(34, 197, 94, 0.1)" />
+            <Circle cx="80" cy="80" r="50" fill="rgba(34, 197, 94, 0.2)" />
+            <Circle cx="80" cy="80" r="38" fill="#22C55E" />
+            <Path
+              d="M60 80 L72 92 L100 64"
+              stroke="white"
+              strokeWidth="5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+          </Svg>
+        </Animated.View>
 
-          <Path
-            d="M52 70 L62 80 L88 54"
-            stroke="white"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-        </Svg>
-      </Animated.View>
+        {/* Success Message */}
+        <Animated.View style={{ opacity: fadeAnim, alignItems: 'center' }}>
+          <Text style={successStyles.title}>Payment Successful! 🎉</Text>
+          <Text style={successStyles.subtitle}>
+            Your {billType} bill has been paid successfully
+          </Text>
+        </Animated.View>
 
-      {/* Success Message */}
-      <Animated.View style={{ opacity: fadeAnim }}>
-        <Text style={successStyles.title}>Payment Successful!</Text>
-        <Text style={successStyles.subtitle}>
-          Your bill has been paid successfully
-        </Text>
-      </Animated.View>
+        {/* Success Details Card */}
+        <Animated.View
+          style={[
+            successStyles.detailsContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <View style={successStyles.amountSection}>
+            <Text style={successStyles.amountLabel}>AMOUNT PAID</Text>
+            <Text style={successStyles.amountText}>Rs {amount}</Text>
+            <View style={successStyles.amountUnderline} />
+          </View>
 
-      {/* Success Details Card */}
-      <Animated.View
-        style={[
-          successStyles.detailsContainer,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
-        <View style={successStyles.amountSection}>
-          <Text style={successStyles.amountLabel}>AMOUNT PAID</Text>
-          <Text style={successStyles.amountText}>Rs {amount}</Text>
-        </View>
+          <View style={successStyles.divider} />
 
-        <View style={successStyles.divider} />
-
-        <View style={successStyles.detailsGrid}>
-          <View style={successStyles.detailRow}>
-            <Text style={successStyles.detailLabel}>Bill Type</Text>
-            <View style={successStyles.billTypeBadge}>
-              <View
-                style={[
-                  successStyles.billTypeIcon,
-                  { backgroundColor: billConfig.color },
-                ]}
-              >
-                <Text style={successStyles.billTypeEmoji}>{billConfig.emoji}</Text>
+          <View style={successStyles.detailsGrid}>
+            <View style={successStyles.detailRow}>
+              <Text style={successStyles.detailLabel}>Bill Type</Text>
+              <View style={[successStyles.billTypeBadge, { backgroundColor: billConfig.lightBg }]}>
+                <View style={[successStyles.billTypeIconSmall, { backgroundColor: billConfig.color }]}>
+                  <Text style={successStyles.billTypeEmojiSmall}>{billConfig.emoji}</Text>
+                </View>
+                <Text style={[successStyles.detailValue, { color: billConfig.color }]}>
+                  {billType}
+                </Text>
               </View>
-              <Text style={successStyles.detailValue}>{billType}</Text>
+            </View>
+
+            <View style={successStyles.detailRow}>
+              <Text style={successStyles.detailLabel}>Consumer Number</Text>
+              <Text style={successStyles.consumerNumber}>{consumerNumber}</Text>
+            </View>
+
+            <View style={successStyles.detailRow}>
+              <Text style={successStyles.detailLabel}>Transaction Date</Text>
+              <Text style={successStyles.detailValue}>
+                {new Date().toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </Text>
             </View>
           </View>
 
-          <View style={successStyles.detailRow}>
-            <Text style={successStyles.detailLabel}>Consumer No.</Text>
-            <Text style={successStyles.consumerNumber}>{consumerNumber}</Text>
+          <View style={successStyles.statusBadge}>
+            <View style={successStyles.statusDot} />
+            <Text style={successStyles.statusText}>Payment Confirmed</Text>
+          </View>
+        </Animated.View>
+
+        {/* Action Buttons */}
+        <View style={successStyles.buttonContainer}>
+          <TouchableOpacity
+            style={successStyles.primaryButton}
+            onPress={() => router.push('/home')}
+            activeOpacity={0.8}
+          >
+            <Text style={successStyles.primaryButtonText}>Back to Home</Text>
+          </TouchableOpacity>
+
+          <View style={successStyles.secondaryButtonsRow}>
+            <TouchableOpacity style={successStyles.secondaryButton} activeOpacity={0.7}>
+              <Text style={successStyles.secondaryButtonIcon}>📄</Text>
+              <Text style={successStyles.secondaryButtonText}>Receipt</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={successStyles.secondaryButton} activeOpacity={0.7}>
+              <Text style={successStyles.secondaryButtonIcon}>💾</Text>
+              <Text style={successStyles.secondaryButtonText}>Save</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={successStyles.secondaryButton} activeOpacity={0.7}>
+              <Text style={successStyles.secondaryButtonIcon}>↗️</Text>
+              <Text style={successStyles.secondaryButtonText}>Share</Text>
+            </TouchableOpacity>
           </View>
         </View>
-
-        <View style={successStyles.statusBadge}>
-          <View style={successStyles.statusDot} />
-          <Text style={successStyles.statusText}>Payment Confirmed</Text>
-        </View>
-      </Animated.View>
-
-      {/* Action Buttons */}
-      <View style={successStyles.buttonContainer}>
-        <TouchableOpacity
-          style={successStyles.primaryButton}
-          onPress={() => router.push('/home')}
-          activeOpacity={0.8}
-        >
-          <Text style={successStyles.primaryButtonText}>Back to Home</Text>
-        </TouchableOpacity>
-
-        <View style={successStyles.secondaryButtonsRow}>
-          <TouchableOpacity
-            style={successStyles.secondaryButton}
-            activeOpacity={0.7}
-          >
-            <Text style={successStyles.secondaryButtonIcon}>📄</Text>
-            <Text style={successStyles.secondaryButtonText}>Receipt</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={successStyles.secondaryButton}
-            activeOpacity={0.7}
-          >
-            <Text style={successStyles.secondaryButtonIcon}>💾</Text>
-            <Text style={successStyles.secondaryButtonText}>Save</Text>
-          </TouchableOpacity>
-        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -199,6 +262,24 @@ export default function UtilityBillsScreen() {
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [showLowBalanceBanner, setShowLowBalanceBanner] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const slideUpAnim = useRef(new Animated.Value(30)).current;
+  const fadeInAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideUpAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeInAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   // Fetch wallet balance on component mount
   useEffect(() => {
@@ -260,72 +341,68 @@ export default function UtilityBillsScreen() {
 
   // Show utility bills form
   return (
-    <ScrollView style={styles.scrollView}>
-      <View style={styles.container}>
-        {/* Header Section */}
+    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <Animated.View
+        style={[
+          styles.container,
+          {
+            opacity: fadeInAnim,
+            transform: [{ translateY: slideUpAnim }]
+          }
+        ]}
+      >
+        {/* Enhanced Header Section */}
         <View style={styles.header}>
+          <View style={styles.headerIcon}>
+            <Text style={styles.headerIconText}>💳</Text>
+          </View>
           <Text style={styles.heading}>Pay Utility Bills</Text>
           <Text style={styles.subheading}>
-            Pay your bills instantly and conveniently
+            Quick and secure bill payments
           </Text>
+
+          {/* Wallet Balance Card */}
+          {!loading && (
+            <View style={styles.walletCard}>
+              <View style={styles.walletIconContainer}>
+                <Text style={styles.walletIcon}>👛</Text>
+              </View>
+              <View style={styles.walletInfo}>
+                <Text style={styles.walletLabel}>Available Balance</Text>
+                <Text style={styles.walletAmount}>Rs {walletBalance.toFixed(2)}</Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Low Balance Banner */}
         {showLowBalanceBanner && (
-          <View style={styles.lowBalanceBanner}>
-            <Text style={styles.bannerIcon}>⚠️</Text>
+          <Animated.View style={styles.lowBalanceBanner}>
+            <View style={styles.bannerIconContainer}>
+              <Text style={styles.bannerIcon}>⚠️</Text>
+            </View>
             <View style={styles.bannerTextContainer}>
-              <Text style={styles.bannerTitle}>Low on Balance</Text>
+              <Text style={styles.bannerTitle}>Insufficient Balance</Text>
               <Text style={styles.bannerText}>
-                Insufficient funds. Please top up your account to continue.
+                Please top up your wallet to continue with this payment.
               </Text>
             </View>
-          </View>
+          </Animated.View>
         )}
 
-        {/* Form Card */}
-        <View style={styles.formCard}>
-          {/* Bill Type Selection */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              <Text style={styles.labelIcon}>📋 </Text>
-              Select Bill Type
-            </Text>
-            <View style={[styles.pickerWrapper, billType && styles.pickerSelected]}>
-              <Picker
-                selectedValue={billType}
-                onValueChange={(itemValue) => setBillType(itemValue)}
-                style={styles.picker}
-              >
-                <Picker.Item label="Choose bill type..." value="" color="#999" />
-                <Picker.Item label="⚡ Electricity (KE, LESCO, IESCO)" value="Electricity" />
-                <Picker.Item label="🔥 Gas (SSGC, SNGPL)" value="Gas" />
-                <Picker.Item label="💧 Water (KWSB)" value="Water" />
-                <Picker.Item label="🌐 Internet (StormFiber, Nayatel)" value="Internet" />
-                <Picker.Item label="☎️ PTCL Landline" value="PTCL" />
-              </Picker>
-              {billConfig && (
-                <View
-                  style={[
-                    styles.billTypeIndicator,
-                    { backgroundColor: billConfig.color },
-                  ]}
-                />
-              )}
-            </View>
-          </View>
-
-          {/* Quick Bill Type Selection */}
+        {/* Bill Type Selection */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Select Bill Type</Text>
           <View style={styles.billTypeGrid}>
             {Object.keys(billTypeConfig).map((type) => {
               const config = billTypeConfig[type];
+              const isSelected = billType === type;
               return (
                 <TouchableOpacity
                   key={type}
                   style={[
                     styles.billTypeCard,
-                    billType === type && styles.billTypeCardActive,
-                    { borderColor: config.color },
+                    isSelected && [styles.billTypeCardActive, { borderColor: config.color }],
                   ]}
                   onPress={() => setBillType(type)}
                   activeOpacity={0.7}
@@ -333,7 +410,7 @@ export default function UtilityBillsScreen() {
                   <View
                     style={[
                       styles.billTypeIconContainer,
-                      billType === type && { backgroundColor: config.color },
+                      isSelected && { backgroundColor: config.color },
                     ]}
                   >
                     <Text style={styles.billTypeIcon}>{config.icon}</Text>
@@ -341,136 +418,178 @@ export default function UtilityBillsScreen() {
                   <Text
                     style={[
                       styles.billTypeCardText,
-                      billType === type && styles.billTypeCardTextActive,
+                      isSelected && { color: config.color, fontWeight: '700' },
                     ]}
                   >
                     {type}
                   </Text>
+                  {isSelected && (
+                    <View style={[styles.selectedIndicator, { backgroundColor: config.color }]} />
+                  )}
                 </TouchableOpacity>
               );
             })}
           </View>
+        </View>
 
-          {/* Conditional Fields - Only show after bill type is selected */}
-          {billType !== '' && (
-            <>
-              {/* Consumer Number Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>
-                  <Text style={styles.labelIcon}>🔢 </Text>
-                  Consumer/Account Number
-                </Text>
-                <View
-                  style={[
-                    styles.inputContainer,
-                    focusedInput === 'consumer' && styles.inputContainerFocused,
-                  ]}
-                >
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter your account number"
-                    placeholderTextColor="#999"
-                    value={consumerNumber}
-                    onChangeText={(text) => {
-                      // Allow alphanumeric characters
-                      const cleaned = text.replace(/[^a-zA-Z0-9]/g, '');
-                      setConsumerNumber(cleaned.toUpperCase());
-                    }}
-                    autoCapitalize="characters"
-                    maxLength={13}
-                    onFocus={() => setFocusedInput('consumer')}
-                    onBlur={() => setFocusedInput(null)}
-                  />
-                </View>
+        {/* Form Fields - Animated appearance */}
+        {billType !== '' && (
+          <Animated.View style={styles.formSection}>
+            {/* Consumer Number Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>
+                <Text style={styles.labelIcon}>🔢 </Text>
+                Consumer / Account Number
+              </Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  focusedInput === 'consumer' && [
+                    styles.inputWrapperFocused,
+                    billConfig && { borderColor: billConfig.color }
+                  ],
+                ]}
+              >
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Enter your account number"
+                  placeholderTextColor="#94A3B8"
+                  value={consumerNumber}
+                  onChangeText={(text) => {
+                    const cleaned = text.replace(/[^a-zA-Z0-9]/g, '');
+                    setConsumerNumber(cleaned.toUpperCase());
+                  }}
+                  autoCapitalize="characters"
+                  maxLength={13}
+                  onFocus={() => setFocusedInput('consumer')}
+                  onBlur={() => setFocusedInput(null)}
+                />
+                {consumerNumber && (
+                  <View style={styles.inputCheckmark}>
+                    <Text style={styles.checkmarkIcon}>✓</Text>
+                  </View>
+                )}
               </View>
+            </View>
 
-              {/* Amount Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>
-                  <Text style={styles.labelIcon}>💰 </Text>
-                  Bill Amount
-                </Text>
-                <View
-                  style={[
-                    styles.inputContainer,
-                    focusedInput === 'amount' && styles.inputContainerFocused,
-                  ]}
-                >
-                  <Text style={styles.currencyPrefix}>Rs</Text>
-                  <TextInput
-                    style={[styles.input, styles.amountInput]}
-                    placeholder="0.00"
-                    placeholderTextColor="#999"
-                    value={amount}
-                    onChangeText={setAmount}
-                    keyboardType="decimal-pad"
-                    onFocus={() => setFocusedInput('amount')}
-                    onBlur={() => setFocusedInput(null)}
-                  />
+            {/* Amount Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>
+                <Text style={styles.labelIcon}>💰 </Text>
+                Bill Amount
+              </Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  styles.amountInputWrapper,
+                  focusedInput === 'amount' && [
+                    styles.inputWrapperFocused,
+                    billConfig && { borderColor: billConfig.color }
+                  ],
+                ]}
+              >
+                <View style={styles.currencyBadge}>
+                  <Text style={styles.currencyText}>Rs</Text>
                 </View>
+                <TextInput
+                  style={[styles.textInput, styles.amountTextInput]}
+                  placeholder="0.00"
+                  placeholderTextColor="#94A3B8"
+                  value={amount}
+                  onChangeText={setAmount}
+                  keyboardType="decimal-pad"
+                  onFocus={() => setFocusedInput('amount')}
+                  onBlur={() => setFocusedInput(null)}
+                />
               </View>
+            </View>
 
-              {/* Bill Summary Card */}
-              {consumerNumber && amount && billConfig && (
-                <View style={[styles.summaryCard, { borderLeftColor: billConfig.color }]}>
-                  <View style={styles.summaryHeader}>
+            {/* Enhanced Bill Summary Card */}
+            {consumerNumber && amount && billConfig && (
+              <View style={[styles.summaryCard, { backgroundColor: billConfig.lightBg }]}>
+                <View style={styles.summaryHeader}>
+                  <View style={[styles.summaryIconContainer, { backgroundColor: billConfig.color }]}>
                     <Text style={styles.summaryIcon}>{billConfig.emoji}</Text>
-                    <Text style={styles.summaryTitle}>Payment Summary</Text>
+                  </View>
+                  <Text style={styles.summaryTitle}>Payment Summary</Text>
+                </View>
+
+                <View style={styles.summaryContent}>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Bill Type</Text>
+                    <Text style={[styles.summaryValue, { color: billConfig.color }]}>
+                      {billType}
+                    </Text>
                   </View>
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Bill Type:</Text>
-                    <Text style={styles.summaryValue}>{billType}</Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Consumer No:</Text>
+                    <Text style={styles.summaryLabel}>Consumer No.</Text>
                     <Text style={styles.summaryValue}>{consumerNumber}</Text>
                   </View>
                   <View style={styles.summaryDivider} />
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryTotalLabel}>Total Amount:</Text>
-                    <Text style={styles.summaryTotalValue}>Rs {amount}</Text>
+                    <Text style={styles.summaryTotalLabel}>Total Amount</Text>
+                    <Text style={[styles.summaryTotalValue, { color: billConfig.color }]}>
+                      Rs {amount}
+                    </Text>
                   </View>
                 </View>
-              )}
-            </>
-          )}
-        </View>
+              </View>
+            )}
 
-        {/* Info Card - Only show when bill type is selected */}
-        {billType && (
-          <View style={styles.infoCard}>
-            <Text style={styles.infoIcon}>ℹ️</Text>
-            <Text style={styles.infoText}>
-              Bills are processed instantly. Please verify all details before confirming payment.
+            {/* Info Banner */}
+            <View style={styles.infoBanner}>
+              <Text style={styles.infoIcon}>ℹ️</Text>
+              <Text style={styles.infoText}>
+                Bills are processed instantly. Please verify all details before payment.
+              </Text>
+            </View>
+
+            {/* Enhanced Pay Button */}
+            <TouchableOpacity
+              style={[
+                styles.payButton,
+                (!consumerNumber || !amount) && styles.payButtonDisabled,
+                billConfig && consumerNumber && amount && {
+                  backgroundColor: billConfig.color,
+                  shadowColor: billConfig.color,
+                },
+              ]}
+              onPress={handlePayment}
+              activeOpacity={0.85}
+              disabled={!consumerNumber || !amount}
+            >
+              <View style={styles.payButtonContent}>
+                <Text style={styles.payButtonText}>
+                  {consumerNumber && amount ? 'Proceed to Pay' : 'Enter Details'}
+                </Text>
+                <View style={styles.payButtonIcon}>
+                  <Text style={styles.payButtonIconText}>→</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* Empty State */}
+        {!billType && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateIcon}>💡</Text>
+            <Text style={styles.emptyStateTitle}>Select a bill type to get started</Text>
+            <Text style={styles.emptyStateText}>
+              Choose from electricity, gas, water, internet, or PTCL bills
             </Text>
           </View>
         )}
-
-        {/* Pay Button - Only show when bill type is selected */}
-        {billType && (
-          <TouchableOpacity
-            style={[
-              styles.payButton,
-              (!consumerNumber || !amount) && styles.payButtonDisabled,
-            ]}
-            onPress={handlePayment}
-            activeOpacity={0.9}
-            disabled={!consumerNumber || !amount}
-          >
-            <Text style={styles.payButtonText}>Pay Bill</Text>
-            <Text style={styles.payButtonIcon}>→</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      </Animated.View>
     </ScrollView>
   );
 }
 
-// Enhanced styles
+// Enhanced Modern Styles
 const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
-    backgroundColor: '#F8F9FD',
+    backgroundColor: '#F8FAFC',
   },
   container: {
     padding: 20,
@@ -478,198 +597,325 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   header: {
-    marginBottom: 30,
+    marginBottom: 28,
+  },
+  headerIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  headerIconText: {
+    fontSize: 28,
   },
   heading: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: '#0F172A',
-    marginBottom: 8,
+    marginBottom: 6,
+    letterSpacing: -0.5,
   },
   subheading: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#64748B',
+    marginBottom: 20,
   },
-  formCard: {
+  walletCard: {
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    color: '#334155',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-  labelIcon: {
-    fontSize: 16,
-  },
-  pickerWrapper: {
-    backgroundColor: '#F8F9FD',
+  walletIconContainer: {
+    width: 48,
+    height: 48,
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E2E8F0',
-    overflow: 'hidden',
-    position: 'relative',
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
-  pickerSelected: {
-    borderColor: '#0A0A3E',
-    backgroundColor: '#fff',
+  walletIcon: {
+    fontSize: 24,
   },
-  picker: {
+  walletInfo: {
+    flex: 1,
+  },
+  walletLabel: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 2,
+    fontWeight: '500',
+  },
+  walletAmount: {
+    fontSize: 22,
+    fontWeight: '700',
     color: '#0F172A',
-    fontSize: 16,
   },
-  billTypeIndicator: {
-    position: 'absolute',
-    right: 12,
-    top: '50%',
-    marginTop: -6,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  lowBalanceBanner: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  bannerIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  bannerIcon: {
+    fontSize: 20,
+  },
+  bannerTextContainer: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#991B1B',
+    marginBottom: 4,
+  },
+  bannerText: {
+    fontSize: 13,
+    color: '#B91C1C',
+    lineHeight: 18,
+  },
+  section: {
+    marginBottom: 28,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 16,
+    paddingLeft: 4,
   },
   billTypeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 20,
+    gap: 12,
   },
   billTypeCard: {
     flex: 1,
     minWidth: '30%',
-    backgroundColor: '#F8F9FD',
-    paddingVertical: 14,
+    backgroundColor: '#fff',
+    paddingVertical: 18,
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#E2E8F0',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   billTypeCardActive: {
     backgroundColor: '#fff',
-    borderWidth: 2,
+    borderWidth: 2.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+    transform: [{ scale: 1.02 }],
   },
   billTypeIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   billTypeIcon: {
-    fontSize: 20,
+    fontSize: 24,
   },
   billTypeCardText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: '#64748B',
     textAlign: 'center',
   },
-  billTypeCardTextActive: {
-    color: '#0F172A',
+  selectedIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  inputContainer: {
-    backgroundColor: '#F8F9FD',
-    borderRadius: 12,
+  formSection: {
+    gap: 20,
+  },
+  inputGroup: {
+    marginBottom: 4,
+  },
+  inputLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: 10,
+    paddingLeft: 4,
+  },
+  labelIcon: {
+    fontSize: 16,
+  },
+  inputWrapper: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: '#E2E8F0',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    minHeight: 56,
+    minHeight: 58,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  inputContainerFocused: {
-    borderColor: '#0A0A3E',
-    backgroundColor: '#fff',
+  inputWrapperFocused: {
+    borderWidth: 2.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  input: {
+  textInput: {
     flex: 1,
     fontSize: 16,
     color: '#0F172A',
+    fontWeight: '500',
     padding: 0,
   },
-  currencyPrefix: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#64748B',
-    marginRight: 8,
+  inputCheckmark: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#22C55E',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  amountInput: {
+  checkmarkIcon: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  amountInputWrapper: {
+    paddingLeft: 8,
+  },
+  currencyBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginRight: 12,
+  },
+  currencyText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  amountTextInput: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   summaryCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 16,
-    borderLeftWidth: 4,
+    borderRadius: 16,
+    padding: 20,
     marginTop: 8,
   },
   summaryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  summaryIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
   summaryIcon: {
-    fontSize: 20,
-    marginRight: 8,
+    fontSize: 18,
   },
   summaryTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#334155',
+    color: '#0F172A',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  summaryContent: {
+    gap: 12,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
   },
   summaryLabel: {
     fontSize: 14,
     color: '#64748B',
+    fontWeight: '500',
   },
   summaryValue: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#0F172A',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   summaryDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
-    marginVertical: 12,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    marginVertical: 4,
   },
   summaryTotalLabel: {
-    fontSize: 15,
-    color: '#334155',
+    fontSize: 16,
+    color: '#0F172A',
     fontWeight: '700',
   },
   summaryTotalValue: {
-    fontSize: 18,
-    color: '#0A0A3E',
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
   },
-  infoCard: {
+  infoBanner: {
     backgroundColor: '#FEF3C7',
-    padding: 16,
+    padding: 14,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
     borderWidth: 1,
     borderColor: '#FDE68A',
   },
@@ -689,8 +935,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
+    marginTop: 12,
     shadowColor: '#0A0A3E',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -700,6 +945,12 @@ const styles = StyleSheet.create({
   payButtonDisabled: {
     backgroundColor: '#CBD5E1',
     shadowOpacity: 0,
+    elevation: 0,
+  },
+  payButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   payButtonText: {
     color: '#fff',
@@ -708,59 +959,52 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   payButtonIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payButtonIconText: {
     color: '#fff',
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  lowBalanceBanner: {
-    backgroundColor: "#FEF2F2",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#FCA5A5",
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    opacity: 0.6,
   },
-  bannerIcon: {
-    fontSize: 24,
-    marginRight: 12,
+  emptyStateIcon: {
+    fontSize: 48,
+    marginBottom: 16,
   },
-  bannerTextContainer: {
-    flex: 1,
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 8,
   },
-  bannerTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#991B1B",
-    marginBottom: 4,
-  },
-  bannerText: {
-    fontSize: 13,
-    color: "#B91C1C",
-    lineHeight: 18,
-  },
-  topUpLink: {
-    backgroundColor: "#DC2626",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  topUpLinkText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "600",
+  emptyStateText: {
+    fontSize: 14,
+    color: '#64748B',
+    textAlign: 'center',
+    paddingHorizontal: 40,
   },
 });
 
-// Enhanced success screen styles
 const successStyles = StyleSheet.create({
-  container: {
+  scrollView: {
     flex: 1,
     backgroundColor: '#F8F9FD',
-    alignItems: 'center',
-    justifyContent: 'center',
+  },
+  container: {
     padding: 24,
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 40,
   },
   iconContainer: {
     marginBottom: 32,
@@ -768,55 +1012,62 @@ const successStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 30,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
     color: '#0F172A',
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#64748B',
     marginBottom: 40,
     textAlign: 'center',
   },
   detailsContainer: {
     backgroundColor: '#fff',
-    paddingVertical: 28,
-    paddingHorizontal: 24,
-    borderRadius: 20,
+    borderRadius: 24,
+    padding: 24,
     width: '100%',
-    marginBottom: 32,
+    marginBottom: 40,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowRadius: 16,
     elevation: 4,
   },
   amountSection: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   amountLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    marginBottom: 8,
+    fontSize: 12,
     fontWeight: '700',
+    color: '#64748B',
+    textTransform: 'uppercase',
     letterSpacing: 1,
+    marginBottom: 8,
   },
   amountText: {
     fontSize: 36,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: '#0F172A',
+  },
+  amountUnderline: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#22C55E',
+    marginTop: 12,
   },
   divider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
-    marginVertical: 20,
+    backgroundColor: '#F1F5F9',
+    marginBottom: 24,
   },
   detailsGrid: {
     gap: 16,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   detailRow: {
     flexDirection: 'row',
@@ -831,58 +1082,53 @@ const successStyles = StyleSheet.create({
   detailValue: {
     fontSize: 15,
     color: '#0F172A',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   billTypeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8F9FD',
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     gap: 8,
   },
-  billTypeIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  billTypeIconSmall: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  billTypeEmoji: {
-    fontSize: 14,
+  billTypeEmojiSmall: {
+    fontSize: 12,
   },
   consumerNumber: {
     fontSize: 14,
     color: '#0F172A',
-    fontWeight: '600',
-    fontFamily: 'monospace',
-    backgroundColor: '#F1F5F9',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 6,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#ECFDF5',
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 20,
-    alignSelf: 'center',
+    borderRadius: 12,
+    alignSelf: 'stretch',
   },
   statusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#22C55E',
+    backgroundColor: '#10B981',
     marginRight: 8,
   },
   statusText: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#059669',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   buttonContainer: {
     width: '100%',
@@ -915,18 +1161,18 @@ const successStyles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E2E8F0',
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
   },
   secondaryButtonIcon: {
-    fontSize: 16,
+    fontSize: 18,
   },
   secondaryButtonText: {
-    color: '#475569',
     fontSize: 14,
     fontWeight: '600',
+    color: '#475569',
   },
 });

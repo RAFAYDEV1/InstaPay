@@ -20,9 +20,9 @@ export default function ScanQRStart() {
       <View style={styles.card}>
         <View style={styles.iconContainer}>
           <View style={styles.iconBackground}>
-            <Image 
-              source={require('@/assets/images/qr.png')} 
-              style={styles.icon} 
+            <Image
+              source={require('@/assets/images/qr.png')}
+              style={styles.icon}
             />
           </View>
         </View>
@@ -76,8 +76,8 @@ export default function ScanQRStart() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
+  container: {
+    flex: 1,
     backgroundColor: '#F8F9FA',
   },
   header: {
@@ -97,9 +97,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { 
-    fontSize: 20, 
-    fontWeight: 'bold', 
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#0A0A3E',
     flex: 1,
     textAlign: 'center',
@@ -137,18 +137,18 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  icon: { 
-    height: 64, 
+  icon: {
+    height: 64,
     width: 64,
   },
-  heading: { 
-    fontSize: 24, 
-    fontWeight: 'bold', 
+  heading: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: '#0A0A3E',
     marginBottom: 12,
   },
-  subtext: { 
-    fontSize: 14, 
+  subtext: {
+    fontSize: 14,
     color: '#666',
     textAlign: 'center',
     lineHeight: 20,
@@ -201,8 +201,8 @@ const styles = StyleSheet.create({
   buttonIcon: {
     marginRight: 4,
   },
-  buttonText: { 
-    color: '#fff', 
+  buttonText: {
+    color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
   },

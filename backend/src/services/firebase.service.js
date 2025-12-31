@@ -191,15 +191,38 @@ class FirebaseService {
     /**
      * Send transaction notification
      */
-    async sendTransactionNotification(userId, transaction) {
+    async sendTransactionNotification(userId, transaction, senderName = null, receiverName = null) {
+        // Format amount with currency
+        const amount = parseFloat(transaction.amount).toFixed(2);
+        const currency = transaction.currency || 'PKR';
+        
+        let body;
+        
+        // Check if this is a transfer between two different users
+        if (transaction.sender_id && transaction.receiver_id && 
+            transaction.sender_id !== transaction.receiver_id && 
+            senderName && receiverName) {
+            // Determine if user sent or received
+            const isSender = transaction.sender_id === userId;
+            const otherUserName = isSender ? receiverName : senderName;
+            const action = isSender ? 'sent' : 'received';
+            body = `${otherUserName} ${action} Rs ${amount}`;
+        } else {
+            // For top-ups, withdrawals, or transactions without sender/receiver info
+            // Use the original format
+            body = `Your ${transaction.transaction_type} of ${currency} ${amount} is ${transaction.status}`;
+        }
+        
         const notification = {
             title: 'Transaction Update',
-            body: `Your ${transaction.transaction_type} of ${transaction.currency} ${transaction.amount} is ${transaction.status}`,
+            body: body,
             data: {
                 type: 'transaction',
                 transactionId: transaction.id,
                 transactionRef: transaction.transaction_ref,
                 status: transaction.status,
+                amount: amount,
+                currency: currency,
             },
         };
 

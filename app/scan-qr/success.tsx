@@ -1,10 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SuccessScreen() {
   const router = useRouter();
+  const { amount, recipient, recipientName, transactionId } = useLocalSearchParams<{
+    amount: string;
+    recipient: string;
+    recipientName: string;
+    transactionId: string;
+  }>();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -24,10 +30,20 @@ export default function SuccessScreen() {
     ]).start();
   }, []);
 
+  // Format current date and time
+  const currentDateTime = new Date().toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
   return (
     <View style={styles.container}>
       {/* Success Animation */}
-      <Animated.View 
+      <Animated.View
         style={[
           styles.successContainer,
           { transform: [{ scale: scaleAnim }] }
@@ -41,7 +57,7 @@ export default function SuccessScreen() {
       </Animated.View>
 
       {/* Content */}
-      <Animated.View 
+      <Animated.View
         style={[
           styles.content,
           { opacity: fadeAnim }
@@ -56,23 +72,33 @@ export default function SuccessScreen() {
         <View style={styles.detailsCard}>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Amount Paid</Text>
-            <Text style={styles.detailValue}>Rs 2,500</Text>
+            <Text style={styles.detailValue}>Rs {amount || '0'}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Recipient</Text>
+            <Text style={styles.detailValueSmall}>{recipientName || 'Merchant'}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Phone Number</Text>
+            <Text style={styles.detailValueSmall}>{recipient || 'N/A'}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Transaction ID</Text>
-            <Text style={styles.detailValueSmall}>#TXN123456789</Text>
+            <Text style={styles.detailValueSmall}>#{transactionId || 'N/A'}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Date & Time</Text>
-            <Text style={styles.detailValueSmall}>Oct 8, 2025 • 2:30 PM</Text>
+            <Text style={styles.detailValueSmall}>{currentDateTime}</Text>
           </View>
         </View>
 
         {/* Action Buttons */}
-        <TouchableOpacity 
-          style={styles.primaryButton} 
+        <TouchableOpacity
+          style={styles.primaryButton}
           onPress={() => router.push('/home')}
         >
           <Text style={styles.primaryButtonText}>Back to Home</Text>
@@ -94,10 +120,10 @@ export default function SuccessScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#F8F9FA',
     padding: 20,
   },
@@ -129,9 +155,9 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
   },
-  title: { 
-    fontSize: 28, 
-    fontWeight: 'bold', 
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
     color: '#0A0A3E',
     marginBottom: 8,
   },
@@ -192,8 +218,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  primaryButtonText: { 
-    color: '#fff', 
+  primaryButtonText: {
+    color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
   },

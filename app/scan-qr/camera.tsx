@@ -46,7 +46,7 @@ export default function CameraScreen() {
   const handleBarCodeScanned = ({ data }: BarcodeScanningResult) => {
     if (scanned) return;
     setScanned(true);
-    router.push({ pathname: '/scan-qr/success', params: { data } });
+    router.push({ pathname: '/scan-qr/amount', params: { qrData: data } });
   };
 
   return (

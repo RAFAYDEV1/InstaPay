@@ -253,8 +253,7 @@ export default function TransferScreen() {
       const response = await ApiService.sendMoney(token, {
         receiverPhone: apiRecipient,
         amount: numAmount,
-        
-        description: note,
+        ...(note.trim() && { description: note }),
       });
 
       if (!response.success) {

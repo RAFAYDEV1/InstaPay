@@ -1,14 +1,14 @@
 import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Clipboard,
-    ScrollView,
-    Share,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Clipboard,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import SessionService from '../../services/session.service';
 
@@ -45,7 +45,7 @@ export default function InviteFriendsScreen() {
   const shareReferralCode = async () => {
     try {
       const message = `Hey! Join me on InstaPay - Pakistan's fastest digital wallet! 💰\n\nUse my referral code: ${referralCode}\n\nYou'll get Rs 200 bonus on signup and I'll get Rs 300! 🎉\n\nDownload: https://instapay.pk/download`;
-      
+
       await Share.share({
         message: message,
         title: 'Join InstaPay with my referral code!'
@@ -132,7 +132,7 @@ export default function InviteFriendsScreen() {
       {/* How it Works */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>How it Works</Text>
-        
+
         <View style={styles.stepItem}>
           <View style={styles.stepNumber}>
             <Text style={styles.stepNumberText}>1</Text>
@@ -173,11 +173,11 @@ export default function InviteFriendsScreen() {
       {/* Sharing Options */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Share via</Text>
-        
+
         <View style={styles.sharingGrid}>
           <TouchableOpacity style={styles.sharingOption} onPress={shareViaWhatsApp}>
             <FontAwesome5 name="whatsapp" size={24} color="#25D366" />
-            <Text style={styles.sharingText}>WhatsApp</Text>
+            <Text style={styles.sharingText}>Whatsapp</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.sharingOption} onPress={shareViaSMS}>
@@ -441,10 +441,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     backgroundColor: '#f8f9fa',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sharingText: {
-    fontSize: 10,
+    fontSize: 8,
     color: '#1E1E50',
     marginTop: 8,
     fontWeight: '500',

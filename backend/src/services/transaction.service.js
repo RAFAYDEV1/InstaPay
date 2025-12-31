@@ -185,18 +185,35 @@ class TransactionService {
                 ['completed', transaction.id]
             );
 
+            // Fetch sender and receiver names for notifications
+            const usersResult = await client.query(
+                `SELECT id, full_name FROM users WHERE id = ANY($1)`,
+                [[senderId, receiverId]]
+            );
+
+            let senderName = 'User';
+            let receiverName = 'User';
+
+            usersResult.rows.forEach(row => {
+                if (row.id === senderId) {
+                    senderName = row.full_name || 'User';
+                } else if (row.id === receiverId) {
+                    receiverName = row.full_name || 'User';
+                }
+            });
+
             await client.query('COMMIT');
+
+            // Prepare transaction object with updated status
+            const completedTransaction = {
+                ...transaction,
+                status: 'completed',
+            };
 
             // Send notifications
             await Promise.all([
-                firebaseService.sendTransactionNotification(senderId, {
-                    ...transaction,
-                    status: 'completed',
-                }),
-                firebaseService.sendTransactionNotification(receiverId, {
-                    ...transaction,
-                    status: 'completed',
-                }),
+                firebaseService.sendTransactionNotification(senderId, completedTransaction, senderName, receiverName),
+                firebaseService.sendTransactionNotification(receiverId, completedTransaction, senderName, receiverName),
             ]);
 
             return {
