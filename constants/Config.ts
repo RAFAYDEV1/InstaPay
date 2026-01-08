@@ -2,7 +2,7 @@
 export const API_CONFIG = {
     // Change this to your computer's IP address when testing on physical device
     // Find your IP: Windows (ipconfig), Mac/Linux (ifconfig)
-    BASE_URL: 'http://192.168.18.84:3000/api',
+    BASE_URL: 'http://192.168.1.132:3000/api',
 
     // For physical device testing, use your computer's IP:d
     // BASE_URL: 'http://192.168.x.x:3000/api',

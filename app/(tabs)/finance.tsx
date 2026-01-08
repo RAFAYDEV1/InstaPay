@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ApiService from '../../services/api.service';
-import SessionService from '../../services/session.service';
+import { SessionService } from '../../services/session.service';
 
 export default function FinanceScreen() {
   const [wallet, setWallet] = useState<any>(null);
